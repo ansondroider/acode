@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical" >
+    <TextView android:id="@+id/dt_tv_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text=":"
+        android:maxLength="5"
+        android:textSize="28sp"
+        android:padding="6dip"
+        />
+    <View android:layout_width="match_parent"
+        android:layout_height="1dip"
+        android:background="#999"
+        android:layout_margin="2dip"/>
+    <TableLayout android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        >
+        <TableRow android:layout_width="match_parent"
+        	android:layout_height="wrap_content">
+            <TextView android:id="@+id/dt_tv_1"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="1"/>
+            <TextView android:id="@+id/dt_tv_2"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="2"/>
+            <TextView android:id="@+id/dt_tv_3"
+               android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="3"/>
+        </TableRow>
+        <TableRow android:layout_width="match_parent"
+        	android:layout_height="wrap_content">
+            <TextView android:id="@+id/dt_tv_4"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="4"/>
+            <TextView android:id="@+id/dt_tv_5"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="5"/>
+            <TextView android:id="@+id/dt_tv_6"
+               android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="6"/>
+        </TableRow>
+        <TableRow android:layout_width="match_parent"
+        	android:layout_height="wrap_content">
+            <TextView android:id="@+id/dt_tv_7"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="7"/>
+            <TextView android:id="@+id/dt_tv_8"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="8"/>
+            <TextView android:id="@+id/dt_tv_9"
+               android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="9"/>
+        </TableRow>
+        <TableRow android:layout_width="match_parent"
+        	android:layout_height="wrap_content">
+            <TextView android:id="@+id/dt_tv_del"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="Del"/>
+            <TextView android:id="@+id/dt_tv_0"
+                android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="0"/>
+            <TextView android:id="@+id/dt_tv_ok"
+               android:layout_width="48dip"
+                android:layout_height="48dip"
+                style="@style/dialog_number"
+                android:text="Ok"/>
+        </TableRow>
+        
+    </TableLayout>
+    
+
+</LinearLayout>
