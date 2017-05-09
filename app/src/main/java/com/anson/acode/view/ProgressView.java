@@ -1,4 +1,4 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -8,21 +8,23 @@ import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
+import com.anson.acode.ALog;
+import com.anson.acode.HttpUtilsAndroid;
+
+import org.apache.http.client.methods.HttpRequestBase;
+
 public class ProgressView extends View {
 
 	public ProgressView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public ProgressView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public ProgressView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	int bgColor = Color.argb(255, 222, 222, 222);
@@ -33,13 +35,22 @@ public class ProgressView extends View {
 	Paint paint;
 	float angle = 0;
 	void init(){
-		pcb = new HttpUtilsAndroid.ProgressCallback() {
-				
-				@Override
-				public void onProgressChange(int progress, int full) {
-					// TODO Auto-generated method stub
+		pcb = new HttpUtilsAndroid.HttpProgressListener() {
+
+            @Override
+            public void onRequestStart(HttpRequestBase req) {}
+            @Override
+            public boolean canceled() {
+                return false;
+            }
+            @Override
+            public void onFinish() {}
+            @Override
+            public void onResponse(int code) {}
+            @Override
+				public void onProgress(long progress, long full) {
 					ALog.alog("ProgressView", "ALog 0603 > onProgressChange(" + progress + ", " + full + ")");
-					setProgress(progress, full);
+					setProgress((int)progress, (int)full);
 					postInvalidate();
 				}
 			};
@@ -51,7 +62,6 @@ public class ProgressView extends View {
 	}
 	@Override
 	protected void onDraw(Canvas canvas) {
-		// TODO Auto-generated method stub
 		paint.setColor(bgColor);
 		canvas.drawCircle(cx, cy, radius, paint);
 		paint.setColor(forColor);
@@ -60,7 +70,6 @@ public class ProgressView extends View {
 	
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Auto-generated method stub
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		int width = MeasureSpec.getSize(widthMeasureSpec);
 		int height = MeasureSpec.getSize(heightMeasureSpec);
@@ -74,6 +83,6 @@ public class ProgressView extends View {
 		}
 	}
 	
-	public HttpUtilsAndroid.ProgressCallback pcb = null;
+	public HttpUtilsAndroid.HttpProgressListener pcb = null;
 
 }

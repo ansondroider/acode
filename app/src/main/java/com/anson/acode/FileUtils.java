@@ -1,9 +1,14 @@
 package com.anson.acode;
 
-import java.io.BufferedInputStream;
+import android.content.Context;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.storage.StorageManager;
+
+import org.apache.http.util.ByteArrayBuffer;
+
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -11,13 +16,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-
-import org.apache.http.util.ByteArrayBuffer;
-
-import android.os.Handler;
+import java.util.List;
 
 public class FileUtils {
 	public static final int TYPE_UNKNOW = 0;
@@ -47,8 +52,8 @@ public class FileUtils {
 	
 	/**
 	 * return the type of File
-	 * @param f
-	 * @return
+	 * @param f file
+	 * @return type via int
 	 */
 	public static int getFileType(File f){
 		int type = TYPE_UNKNOW;
@@ -128,11 +133,65 @@ public class FileUtils {
 		
 		return null;
 	}
-	
-	/**
+
+    /**
+     * get Mounted Storage from StorageManager.
+     * @param mContext to get StorageManager
+     * @return VolumeInfo List
+     */
+    public static List<VolumeInfo> getMountByReflect(Context mContext) {
+
+        StorageManager mStorageManager = (StorageManager) mContext.getSystemService(Context.STORAGE_SERVICE);
+        Class<?> storageVolumeClazz = null;
+        try {
+            storageVolumeClazz = Class.forName("android.os.storage.StorageVolume");
+            Method getVolumeList = mStorageManager.getClass().getMethod("getVolumeList");
+            Method getPath = storageVolumeClazz.getMethod("getPath");
+            //Method isRemovable = storageVolumeClazz.getMethod("isRemovable");
+            Object vols = getVolumeList.invoke(mStorageManager);
+
+            final int length = Array.getLength(vols);
+            List<VolumeInfo> vis = new ArrayList<VolumeInfo>();
+            String dir = Environment.getExternalStorageDirectory().getAbsolutePath();
+            for (int i = 0; i < length; i++) {
+                Object storageVolumeElement = Array.get(vols, i);
+                String path = (String) getPath.invoke(storageVolumeElement);
+                //boolean removable = (Boolean) isRemovable.invoke(storageVolumeElement);
+
+                vis.add(new VolumeInfo(path, dir.equals(path)));
+            }
+            return vis;
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    /** class for save storage volume info **/
+    public static class VolumeInfo {
+        public String path;
+        public boolean isInternalSD;
+        VolumeInfo(String path, boolean isInternalSD){
+            this.path = path;
+            this.isInternalSD = isInternalSD;
+        }
+
+        @Override
+        public String toString() {
+            return "VolumeInfo[path(" + path + "), isInternalSD(" + isInternalSD + ")]";
+        }
+    }
+
+
+    /**
 	 * get all file sub Path, no Folder.
-	 * @param path
-	 * @return
+	 * @param path Folder you want
+	 * @return file list
 	 */
 	public static File[] getAllFileSubPathNoDirectory(String path){
 		File f = new File(path);
@@ -260,7 +319,12 @@ public class FileUtils {
 		
 		return null;
 	}
-	
+
+    /**
+     * get file no ext; file.txt -> file
+     * @param f file
+     * @return simple name
+     */
 	public static String getSimpleName(File f){
 		String name = f.getName();
 		int idx = name.lastIndexOf('.');
@@ -345,8 +409,8 @@ public class FileUtils {
 	
 	/**
 	 * if "/mnt/sdcard/file.ext" return file
-	 * @param fullPath
-	 * @return
+	 * @param fullPath file path
+	 * @return filename
 	 */
 	public static String pickFileShortName(String fullPath){
 		String target = pickFileName(fullPath);
@@ -357,6 +421,13 @@ public class FileUtils {
 			return target;
 		
 	}
+
+    /**
+     * if '/mnt/sdcard/file.ext' return file
+     * @param fullPath file path
+     * @param ext file suffix
+     * @return file name
+     */
 	public static String pickFileShortName(String fullPath, String ext){
 		fullPath = fullPath.replaceAll(ext, "");
 		return pickFileName(fullPath);
@@ -364,7 +435,7 @@ public class FileUtils {
 	
 	/**
 	 * if "/mnt/sdcard/file.ext" return file.ext
-	 * @param fullPath
+	 * @param fullPath full path of file.
 	 * @return
 	 */
 	public static String pickFileName(String fullPath){
@@ -460,6 +531,27 @@ public class FileUtils {
 		}		
 		return true;
 	}
+
+    /**
+     * create new Thread to remove file or Folder.
+     * @param f file or folder
+     * @param h handler to notify finish
+     * @param msgFinish message for finish.
+     */
+    public static void removeFile(String f, final Handler h, final int msgFinish){
+        removeFile(new File(f), h, msgFinish);
+    }
+    public static void removeFile(final File f, final Handler h, final int msgFinish){
+        new Thread(){
+            @Override
+            public void run() {
+                removeFile(f);
+                if(h != null){
+                    h.sendEmptyMessage(msgFinish);
+                }
+            }
+        }.start();
+    }
 	
 	public static void findApkFromDataApp(){
 		try {
@@ -511,23 +603,32 @@ public class FileUtils {
 	 * @param s
 	 */
 	public static void writeStringToFile(File f, String s){
-		if(f.exists()){
-			f.mkdirs();
-		}
-		try {
-			byte[] bytes = s.getBytes();
-			FileOutputStream fos = new FileOutputStream(f);
-			fos.write(bytes);
-			fos.flush();
-			fos.close();
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+        byte[] bytes = s.getBytes();
+        writeToFile(f, bytes);
 	}
+
+    /**
+     * write String s to File f
+     * @param f
+     * @param s
+     */
+    public static void writeToFile(File f, byte[] content){
+        File parent = f.getParentFile();
+        //ALog.d(parent.getAbsolutePath() + " " + (parent.exists() ? "exists":"not exists"));
+        if(!parent.exists()){
+            ALog.w("writeToFile create Folder(" + parent.getAbsolutePath() + ") " + parent.mkdirs());
+        }
+        try {
+            FileOutputStream fos = new FileOutputStream(f);
+            fos.write(content);
+            fos.flush();
+            fos.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 	
 	/**
 	 * always we read a X.txt file, and want to get the content to do something
@@ -726,10 +827,10 @@ public class FileUtils {
 			 };
 	
 	/**
-	 * copy file or folder to taretFolder
-	 * @param src
-	 * @param targetFolder
-	 * @return
+	 * copy file or folder to targetFolder
+	 * @param src src file
+	 * @param targetFolder target folder
+	 * @return success
 	 */
 	public static boolean copyFile(String src, String targetFolder){
 		try {
@@ -818,38 +919,41 @@ public class FileUtils {
 		} finally {
 		}
 	}
-	
+
 	/**
-	 * Copy with handler to send progress
-	 */
-	
-	/**
-	 * copy file or folder to taretFolder
-	 * @param src
-	 * @param targetFolder
-	 * @return
+	 * copy file or folder to targetFolder
+     * src(/mnt/sdcard/src) tar(/mnt/external_sd/)
+     * dst(/mnt/external_sd);
+	 * @param src src folder
+	 * @param targetFolder target folder
+	 * @return finish
 	 */
 	public static boolean copyFile(String src, String targetFolder, Handler h, int what){
 		try {
-			File F0 = new File(targetFolder);
-			if (!F0.exists()) {
-				if (!F0.mkdirs()) {
+            //create target folder if NOT exists
+			File target = new File(targetFolder);
+			if (!target.exists()) {
+				if (!target.mkdirs()) {
 					return false;
 				}
 			}
 			
 			File F = new File(src);
 			if(F.isFile()){
-				return copySingleFile(src, F0.getAbsolutePath() + "/" + F.getName(), h, what);
+				boolean res = copySingleFile(src, target.getAbsolutePath() + "/" + F.getName(), h, what);
+                if(h != null)h.sendEmptyMessage(what);
+                return res;
 			}else if(F.isDirectory()){
 				//src = /mnt/sdcard/thumb;
 				//                       |-1.jpg, 2.jpg, 
 				//                       |-movie
 				//                         |-3.jpg
 				//tar = /mnt/sdcard/download;
-				File tar = new File(F0.getAbsolutePath() +"/" + F.getName());
+                //create target folder.
+				File tar = new File(target.getAbsolutePath() +"/" + F.getName());
 				tar.mkdir();
-				
+
+                //start copy file.
 				File[] allFile = F.listFiles(); 
 				int totalNum = allFile.length; 
 				String srcName = "";
@@ -858,13 +962,11 @@ public class FileUtils {
 				for (currentFile = 0; currentFile < totalNum; currentFile++) {
 					if (!allFile[currentFile].isDirectory()) {
 						// 如果是文件是采用處理文件的方式
-						srcName = allFile[currentFile].toString();
-						desName = targetFolder + "/" + F.getName() + "/"+ allFile[currentFile].getName();
+						srcName = allFile[currentFile].getAbsolutePath();
+						desName = tar.getAbsolutePath() + "/"+ allFile[currentFile].getName();
 						copySingleFile(srcName, desName, h, what);
 					}else {
-						if (copyFile(allFile[currentFile].getPath().toString(),
-								targetFolder + "/" + F.getName(), h, what)) {
-						} else {return false;}
+						copyFile(allFile[currentFile].getAbsolutePath(), tar.getAbsolutePath());
 					}
 				}
 				return true;
@@ -872,8 +974,10 @@ public class FileUtils {
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
-		}		
-	}
+		}finally {
+            if(h != null)h.sendEmptyMessage(what);
+        }
+    }
 	
 	/**
 	 * copy SINGLE file from src to des.
@@ -1084,4 +1188,22 @@ public class FileUtils {
 				p.mkdirs();
 		}
 	}
+
+    /**
+     * create .nomedia in the special folder
+     * @param folder folder path.
+     * @param ignoreNoFile if true, create whatever.
+     */
+    public static void createNoMediaFile(String folder, boolean ignoreNoFile){
+        File f = new File(folder + "/.nomedia");
+        if(f.exists())return;
+        try {
+            if(f.getParentFile().exists()) {
+                boolean b = f.createNewFile();
+                if (!b) ALog.w("create file failed");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

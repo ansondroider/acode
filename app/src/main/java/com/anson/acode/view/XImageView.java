@@ -1,6 +1,8 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
+
 import java.util.ArrayList;
 
 import android.content.Context;
@@ -12,25 +14,46 @@ import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
-import android.util.FloatMath;
 import android.view.MotionEvent;
-import android.view.View.MeasureSpec;
+import android.view.View;
 import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
-import android.widget.ImageView.ScaleType;
 
+import com.anson.acode.ALog;
+import com.anson.acode.AnimationHelper;
+import com.anson.acode.BitmapUtils;
+import com.anson.acode.HttpUtilsAndroid;
+import com.anson.acode.StringUtils;
+import com.anson.acode.download.DownloadThread;
+import com.anson.acode.download.DownloadThreadFactory;
+
+import org.apache.http.client.methods.HttpRequestBase;
+
+/**
+ * created by AnsonDroider.
+ * to support :
+ * 1.image scale and move, and scale to fixed sizes.
+ * 2.add recycle operation
+ * 3.add show animations
+ * 4.add load progress show.
+ *
+ * It's was OOM occur in Android6.0.
+ * the bitmap will NOT recycle till the view's reference > 0.
+ * but, this problem was NEVER in Android4.4.
+ * so, we MUST clear all reference of view if you want recycle bitmap immediate.
+ * See ComicView also.
+ */
 public class XImageView extends ImageView{
 
 	private Bitmap mBm = null;
-	private Bitmap preBm = null;
-	boolean isClick = true;
+    boolean isClick = true;
 	boolean showProgress = false;
-	ClickListener clistener;
-	final String TAG = "XImageView";
+	ClickListener clickListener;
 	float minScale = 1;
 	float autoScale = 1;
 	float[] target = null;
@@ -42,7 +65,7 @@ public class XImageView extends ImageView{
 	long startTime;
 	long endTime;
 	private int idx = 0;
-	private String tag = "XImageView";
+	private String TAG = "XImageView";
 	private Matrix matrix;
 	private int ViewMode = VMODE_AUTOSCALE;
 	private int CurMode = ViewMode;
@@ -54,8 +77,11 @@ public class XImageView extends ImageView{
 	private static final int NONE = 0;
 	private static final int DRAG = 1;
 	private static final int ZOOM = 2;
+    /** VMODE_NORMAL : no scaled **/
 	public final static int VMODE_NORMAL = 0;
+    /** VMODE_AUTOSCALE : auto scale to full screen. BUT, width or height will beyone screen **/
 	public final static int VMODE_AUTOSCALE = 1;
+    /** VMODE_FITSCREEN : image will inside VIEW **/
 	public final static int VMODE_FITSCREEN = 2;
 	public final static int MSG_DOUBLE_CLICKCANCEL = 81;
 	public final static int MSG_DOUBLE_CLICKED = 82;
@@ -71,65 +97,68 @@ public class XImageView extends ImageView{
 	int radius = 40;
 	int cx, cy;
 	RectF ov = new RectF();
+    RectF outArc = new RectF();
 	Paint paint;
 	float angle = 0;
-	public HttpUtilsAndroid.ProgressCallback pcb = null;
-
+    H h;
 	
 	/** Handler ********************************************/
-	Handler h = new Handler(){
+	static class H extends Handler{
+        WeakReference<XImageView> x;
+        public H(XImageView xiv){
+            x = new WeakReference<XImageView>(xiv);
+        }
 		public void handleMessage(android.os.Message msg) {
 			//ALog.alog(tag, "msg.what = " + msg.what);
 			switch(msg.what){
 			case MSG_DOUBLE_CLICKCANCEL:
-				cancelDoubleClick();
+				x.get().cancelDoubleClick();
 				break;
 			case MSG_DOUBLE_CLICKED:
-				performDoubleClicked();
+                x.get().performDoubleClicked();
 				break;
 			case MSG_LONG_CLICKCANEL:
-				cancelLongClick();
+                x.get().cancelLongClick();
 				break;
 			case MSG_LONG_CLICKED:
-				performLongClicked();
+                x.get().performLongClicked();
 				break;
 			case MSG_SINGLE_CLICKED:
 				float[] p = (float[])msg.obj;
-				preformSingleClicked(p[0], p[1]);
+                x.get().preformSingleClicked(p[0], p[1]);
+                x.get().performClick();
 				break;
 			case MSG_MOVE_SBS:
-				moveStepByStep();
+                x.get().moveStepByStep();
 				break;
 			case MSG_LOADNXTBM_COMP:
-				setImageBitmap(bmNxt);
-				bmNxt = null;
-				startAnimation(AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_in));
-				break;
+                x.get().onNextBitmapReady();
+               break;
 			}
-		};
-	};
+		}
+	}
 	
 	/** Construction ****************************************/
 	public XImageView(Context context) {
 		super(context);
+        h = new H(this);
 		matrix = getImageMatrix();
 		setScaleType(ScaleType.MATRIX);
 
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public XImageView(Context context, AttributeSet attrs) {
 		super(context, attrs);
+        h = new H(this);
 		matrix = getImageMatrix();
 		setScaleType(ScaleType.MATRIX);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public XImageView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
+        h = new H(this);
 		matrix = getImageMatrix();
 		setScaleType(ScaleType.MATRIX);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	
@@ -137,16 +166,6 @@ public class XImageView extends ImageView{
 	void init(){
 		sysScale = getResources().getDisplayMetrics().density;
 		radius *= sysScale;
-		pcb = new HttpUtilsAndroid.ProgressCallback() {
-				
-				@Override
-				public void onProgressChange(int progress, int full) {
-					// TODO Auto-generated method stub
-					//ALog.alog("ProgressView", "ALog 0603 > onProgressChange(" + progress + ", " + full + ")");
-					setProgress(progress, full);
-					postInvalidate();
-				}
-			};
 		paint = new Paint();
 		paint.setAntiAlias(true);
 		paint.setTextSize(14 * sysScale);
@@ -156,7 +175,6 @@ public class XImageView extends ImageView{
 	}
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Auto-generated method stub
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		int width = MeasureSpec.getSize(widthMeasureSpec);
 		int height = MeasureSpec.getSize(heightMeasureSpec);
@@ -167,6 +185,11 @@ public class XImageView extends ImageView{
 			ov.top = cy - radius;
 			ov.right = cx + radius;
 			ov.bottom = cy + radius;
+
+            outArc.left = ov.left - radius/5;
+            outArc.top = ov.top - radius/5;
+            outArc.right = ov.right + radius/5;
+            outArc.bottom = ov.bottom + radius/5;
 		}
 	}
 	public void setMinScale(float scale){
@@ -210,35 +233,66 @@ public class XImageView extends ImageView{
 		}
 		return drag;
 	}
-	
-	@Override
+
+    public void recycle(){
+        if(getDrawable() != null) {
+            BitmapDrawable bd = (BitmapDrawable) getDrawable();
+            if(bd.getBitmap() != null){
+                bd.mutate();
+                bd.setCallback(null);
+                bd.getBitmap().recycle();
+            }
+            setImageDrawable(null);
+        }
+        setImageBitmap(null);
+        postInvalidate();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if(dt != null){
+            dt.setProgressListener(null);
+            dt = null;
+        }
+    }
+
+    void onNextBitmapReady(){
+        setImageBitmap(bmNxt);
+        bmNxt = null;
+        if(getVisibility() == View.VISIBLE) {
+            startAnimation(AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_in));
+        }
+    }
+
+    @Override
 	public void setImageBitmap(Bitmap bm) {
-		super.setImageBitmap(bm);
 		//ALog.alog(TAG, "setImageBitmap(" + (bm == null ? "NULL":"NOTNULL") +") idx = " + index);
 		int vW = getWidth();
 		int vH = getHeight();
 		drawCache = false;
-		// TODO Auto-generated method stub
 		if(bm == null){
-			//ALog.alog(TAG, "setImageBitmap(null) go recycle");
-			if(mBm != null)mBm.recycle();
+			//ALog.alog(TAG, "setImageBitmap(null) go recycle " + fileName);
+			if(mBm != null){
+                mBm.recycle();
+            }
 			mBm = null;
 			if( null != bmNxt)bmNxt.recycle();
 			//isLoading = false;
-			return;
+            super.setImageBitmap(mBm);
+
+            return;
 		}
-		
-		preBm = mBm;
+
+        Bitmap preBm = mBm;
 		int bmW = bm.getWidth();
 		int bmH = bm.getHeight();
 		float scale[] = BitmapUtils.getScaleByMode(bmW, bmH, vW, vH);
-		//ALog.alog(TAG, "bw:bh=" + bmW + ":" + bmH + ", vW:vH=" + vW + ":" + vH);
-		//ALog.alog(TAG, "scale = " + scale[0] + ", " + scale[1] + ", " + scale[2]);
+
 		ViewMode = CurMode;
 		int cW = (int)(bmW * scale[ViewMode]);
 		int cH = (int)(bmH * scale[ViewMode]);
-		//ALog.alog(TAG, "finalScale = " + ViewMode + ":" + scale[ViewMode] + "\n" +
-		//			"cW = " + cW + ", cH = " + cH);
+
 		matrix.setScale(scale[ViewMode], scale[ViewMode]);
 		if(cW > vW || cH > vH){
 			matrix.postTranslate(vW - cW, 0);
@@ -249,16 +303,21 @@ public class XImageView extends ImageView{
 		setAutoScale(scale[VMODE_AUTOSCALE]);
 		setMinScale(scale[VMODE_FITSCREEN]);
 		mBm = bm;
-		setImageMatrix(matrix);//Sould add in Nexus 5
+		setImageMatrix(matrix);//Should add in Nexus 5
 		postInvalidate();
 		if(preBm != null){
 			preBm.recycle();
 		}
-		//isLoading = false;
+        super.setImageBitmap(mBm);
 	}
-	@Override
+
+    @Override
+    public void setImageDrawable(Drawable drawable) {
+        super.setImageDrawable(drawable);
+    }
+
+    @Override
 	public void setImageMatrix(Matrix matrix) {
-		// TODO Auto-generated method stub
 		super.setImageMatrix(matrix);
 		this.matrix = matrix;
 	}
@@ -266,9 +325,8 @@ public class XImageView extends ImageView{
 	boolean drawCache = false;
 	@Override
 	protected void onDraw(Canvas canvas) {
-		// TODO Auto-generated method stub
 		if(drawCache){
-			
+			ALog.d(TAG, "onDraw drawCache.....");
 		}else{
 			try{
 				super.onDraw(canvas);
@@ -278,11 +336,16 @@ public class XImageView extends ImageView{
 		}
 		if(showProgress){
 			paint.setColor(bgColor);
-			canvas.drawCircle(cx, cy, radius, paint);
+			//canvas.drawCircle(cx, cy, radius, paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(radius/10);
+            canvas.drawArc(outArc, -90 + angle, 360 - angle, false, paint);
 			paint.setColor(forColor);
+            paint.setStyle(Paint.Style.FILL);
 			canvas.drawArc(ov, -90, angle, true, paint);
-			paint.setColor(Color.BLACK);
-			canvas.drawText(formatProgress(), cx-16, cy, paint);
+			paint.setColor(Color.WHITE);
+            paint.setTextAlign(Paint.Align.CENTER);
+			canvas.drawText(formatProgress(), cx, cy, paint);
 		}
 	}
 	String formatProgress(){
@@ -336,15 +399,16 @@ public class XImageView extends ImageView{
 			CurMode ++;
 		}
 		startMoveAnimation(getTargetFromMode(CurMode));
+        if(modeChanged != null)modeChanged.onViewModeChanged(CurMode);
 	}
 	
 	public void setClickListener(ClickListener cl){
-		clistener = cl;
+		clickListener = cl;
 	}
 	void preformSingleClicked(float x, float y){
 		waitForDoubleClick = false;
 		h.removeMessages(MSG_DOUBLE_CLICKED);
-		if(clistener != null)clistener.onClick(x, y);
+		if(clickListener != null) clickListener.onClick(x, y);
 	}
 	
 	
@@ -357,7 +421,6 @@ public class XImageView extends ImageView{
 	OnLongClickListener longList = null;
 	@Override
 	public void setOnLongClickListener(OnLongClickListener l) {
-		// TODO Auto-generated method stub
 		super.setOnLongClickListener(l);
 		longList = l;
 	}
@@ -376,7 +439,6 @@ public class XImageView extends ImageView{
 	/** TouchEvent for imageView *******************************************/
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		// TODO Auto-generated method stub
 		//ALog.alog(TAG, "onTouchEvent()");
 		XImageView xiv = this;
 		Matrix matrix = xiv.getImageMatrix();
@@ -401,16 +463,16 @@ public class XImageView extends ImageView{
 					isClick = false;
 				}
 				if(isClick){
-					if(waitForDoubleClick){
-						h.sendEmptyMessage(MSG_DOUBLE_CLICKED);
-					}else{
-						waitForDoubleClick = true;
-						h.sendEmptyMessageDelayed(MSG_DOUBLE_CLICKCANCEL, 500);
-						Message msg = h.obtainMessage();
-						msg.what = MSG_SINGLE_CLICKED;
-						msg.obj = new float[]{event.getX(), event.getY()};
-						if(readyToLongClick)h.sendMessageDelayed(msg, 200);
-						h.sendEmptyMessage(MSG_LONG_CLICKCANEL);
+                    h.sendEmptyMessage(MSG_LONG_CLICKCANEL);
+                    if(waitForDoubleClick){
+                        h.sendEmptyMessage(MSG_DOUBLE_CLICKED);
+                    }else{
+                        waitForDoubleClick = true;
+                        h.sendEmptyMessageDelayed(MSG_DOUBLE_CLICKCANCEL, 500);
+                        Message msg = h.obtainMessage();
+                        msg.what = MSG_SINGLE_CLICKED;
+                        msg.obj = new float[]{event.getX(), event.getY()};
+                        if(readyToLongClick)h.sendMessageDelayed(msg, 200);
 					}
 					
 				}
@@ -448,18 +510,24 @@ public class XImageView extends ImageView{
 						xiv.getParent().requestDisallowInterceptTouchEvent(false);
 					}else{
 						matrix.postTranslate(dis[0], dis[1]);
-						osView.clear();
-						if(Math.abs(vx) > Math.abs(vy)){
-							if((int)Math.abs(dis[0]) != (int)Math.abs(vx)){
-								if(vx < 0)osView.setOverScroll(OverscrollView.over_left, (int)Math.abs(vx));
-								if(vx > 0)osView.setOverScroll(OverscrollView.over_right, (int)Math.abs(vx));
-							}
-						}else{
-							if((int)Math.abs(dis[1]) != (int)Math.abs(vy)){
-								if(vy < 0)osView.setOverScroll(OverscrollView.over_top, (int)Math.abs(vy));
-								if(vy > 0)osView.setOverScroll(OverscrollView.over_bottom, (int)Math.abs(vy));
-							}
-						}
+                        if(osView != null) {
+                            osView.clear();
+                            if (Math.abs(vx) > Math.abs(vy)) {
+                                if (Math.abs(dis[0]) != Math.abs(vx)) {
+                                    if (vx < 0)
+                                        osView.setOverScroll(OverscrollView.over_left, (int) Math.abs(vx));
+                                    if (vx > 0)
+                                        osView.setOverScroll(OverscrollView.over_right, (int) Math.abs(vx));
+                                }
+                            } else {
+                                if (Math.abs(dis[1]) != Math.abs(vy)) {
+                                    if (vy < 0)
+                                        osView.setOverScroll(OverscrollView.over_top, (int) Math.abs(vy));
+                                    if (vy > 0)
+                                        osView.setOverScroll(OverscrollView.over_bottom, (int) Math.abs(vy));
+                                }
+                            }
+                        }
 					}
 				} else if (mode == ZOOM) {
 					float newDist = spacing(event);
@@ -479,7 +547,7 @@ public class XImageView extends ImageView{
 	
 	/** Animation *****************************************************/
 	private void onTouchRelease(){
-		osView.touchRelease();
+		if(osView != null)osView.touchRelease();
 		if(mBm == null)return;
 		matrix.getValues(current);
 		if(current[0] < getMinScale()){
@@ -495,8 +563,8 @@ public class XImageView extends ImageView{
 		ALog.alog(TAG, "startMoveAnimation tar=" + tar[0] + "," + tar[1] + "," + tar[2] + "\n" +
 						"current=" + current[0] + ","+current[1]+","+current[2]);
 		//target[0] = getMinScale();
-		float bw = mBm.getWidth() * target[0];
-		float bh = mBm.getHeight() * target[0];
+		//float bw = mBm.getWidth() * target[0];
+		//float bh = mBm.getHeight() * target[0];
 		//target[1] =((int)(getWidth() - bw)) >> 1;
 		//target[2] =((int)(getHeight() - bh)) >> 1;
 		
@@ -510,7 +578,7 @@ public class XImageView extends ImageView{
 	
 	void moveStepByStep(){
 		long time = System.currentTimeMillis();
-		float progress =AnimationHelper.getMoveRate((int)(time-startTime), DURATION, true); //(time - startTime)/(float)DURATION;
+		float progress = AnimationHelper.getMoveRate((int)(time-startTime), DURATION, true); //(time - startTime)/(float)DURATION;
 		if(progress >= 1){
 			matrix.setScale(target[0], target[0]);
 			matrix.postTranslate(target[1],target[2]);
@@ -527,7 +595,8 @@ public class XImageView extends ImageView{
 	private float spacing(MotionEvent event) {
 		float x = event.getX(0) - event.getX(1);
 		float y = event.getY(0) - event.getY(1);
-		return FloatMath.sqrt(x * x + y * y);
+		//return Math.sqrt((double)(x * x + y * y));
+        return (float)Math.sqrt(x * x + y * y);
 	}
 
 	private void midPoint(PointF point, MotionEvent event) {
@@ -537,11 +606,11 @@ public class XImageView extends ImageView{
 	}
 	/**
 	 * calculate max space we can move.
-	 * @param v
-	 * @param mat
-	 * @param dx
-	 * @param dy
-	 * @return
+	 * @param v XImageView
+	 * @param mat current matrix
+	 * @param dx ????
+	 * @param dy ????
+	 * @return int array of sizes
 	 */
 	private int[] calcAvaSpace(XImageView v, Matrix mat, float dx, float dy){
 		int[] dis = {0, 0};
@@ -598,19 +667,133 @@ public class XImageView extends ImageView{
 	}
 	
 	public void setViewMode(int mode){
-		CurMode = mode;
+        if(CurMode != mode) {
+            CurMode = mode;
+            if(mBm != null && matrix != null) {
+                float tar[] = getTargetFromMode(CurMode);
+                matrix.setScale(tar[0], tar[0]);
+                matrix.postTranslate(tar[1], tar[2]);
+                setImageMatrix(matrix);
+                postInvalidate();
+            }
+        }
 	}
 	
 	Bitmap bmNxt = null;
+    String fileName = "";
+    String absLocalPath = "";
 	volatile boolean isLoading = false;
+    DownloadThread dt = null;
 	/** Load and Update Bitmap to ImageView **************************************************/
+    public void loadNextBitmap(final String url, final String folder, final String fileName, final boolean force){
+        if(isLoading || (mBm != null && !force)){
+            ALog.w(TAG, "loadNextBitmap loading = " + isLoading);
+            return;
+        }
+        setShowProgress(true);
+        if(!force && (mBm != null && !mBm.isRecycled() && fileName.equals(this.fileName))){
+            ALog.w(TAG, "already load the same bitmap mBm");
+            return;
+        }
+        this.fileName = fileName;
+        absLocalPath = folder + "/" + fileName;
+        if(DownloadThreadFactory.getFactory().findThread(url) != null){
+            isLoading = true;
+            dt = DownloadThreadFactory.getFactory().findThread(url);
+            dt.setProgressListener(progressListener);
+        }else {
+            isLoading = true;
+            final File f = new File(folder + "/" + fileName);
+            if(force && f.exists()){
+                //delete file first...
+                boolean b = f.delete();
+                ALog.w(TAG, "delete file " + f + (b ? " success" : " failed"));
+            }
+            //NOT found url file is downloading...
+            /** first find local file to get bitmap **/
+            if(f.exists()){
+                //try get bitmap from file.
+                new Thread(){
+                    @Override
+                    public void run() {
+                        Bitmap bm = BitmapUtils.decodeBitmapWithExceptionCatch(f.getAbsolutePath());
+                        if (bm != null) {
+                            bmNxt = bm;
+                            h.sendEmptyMessage(MSG_LOADNXTBM_COMP);
+                            setShowProgress(false);
+                            isLoading = false;
+                        }else{
+                            //get bitmap from file failed... go download it.
+                            downloadFile(url, folder);
+                        }
+                    }
+                }.start();
+            }else{
+                //file NOT file in local, go download...
+                downloadFile(url, folder);
+            }
+        }
+    }
+
+    void downloadFile(final String url, final String folder){
+        dt = new DownloadThread(url, progressListener) {
+            @Override
+            public void execute() {
+                HttpUtilsAndroid.downloadFileFromUrl(url, folder, fileName, this);
+            }
+        };
+        dt.start();
+    }
+
+    HttpUtilsAndroid.HttpProgressListener progressListener = new HttpUtilsAndroid.HttpProgressListener() {
+        @Override
+        public boolean canceled() {
+            return false;
+        }
+        @Override
+        public void onRequestStart(HttpRequestBase req) {}
+        @Override
+        public void onResponse(int code) {}
+        @Override
+        public void onProgress(long progress, long size) {
+            if(size > 0) {
+                setProgress((int) progress, (int) size);
+                postInvalidate();
+            }
+        }
+
+        @Override
+        public void onFinish() {
+            //try get bitmap from file.
+            new Thread(){
+                @Override
+                public void run() {
+                    dt = null;
+                    Bitmap bm = BitmapUtils.decodeBitmapWithExceptionCatch(absLocalPath);
+                    if (bm != null) {
+                        bmNxt = bm;
+                        h.sendEmptyMessage(MSG_LOADNXTBM_COMP);
+                        setShowProgress(false);
+                        isLoading = false;
+                    }else{
+                        ALog.e(TAG, "onFinish ...get bitmap failed " + absLocalPath);
+                    }
+                }
+            }.start();
+        }
+    };
 	public void loadNextBitmap(final int idx, final ArrayList<String[]> pictures, final String title, final String[] chapter, 
 			final String savePath, final String header, final String headerValue, final boolean force){
 		if(isLoading || mBm != null && !force)return;
 		setShowProgress(true);
-		new Thread(){
+		new DownloadThread("", null){
+            public void onProgress(long progress, long full) {
+                super.onProgress(progress, full);
+                setProgress((int)progress, (int)full);
+                postInvalidate();
+            }
 			@Override
-			public void run() {
+			public void execute() {
 				//ALog.alog("XImageView", "ALog 0605 > loadNextBitmap()_idx = " + idx + " isLoading = " + isLoading);
 				if(isLoading)
 					return;
@@ -623,13 +806,16 @@ public class XImageView extends ImageView{
 				if(!force)
 					bm = BitmapUtils.decodeBitmapWithExceptionCatch(f.getAbsolutePath());
 				else{
-					if(f.exists())f.delete();
+					if(f.exists()){
+                        boolean b = f.delete();
+                        if(!b)ALog.w(TAG, "delete file " + f + " failed");
+                    }
 				}
 				if(bm == null){
 					if(pic[1].startsWith("http://")){
 						bm = BitmapUtils.getBitmapFromUrlWidthHeader(pic[1], savePath + title + "/" + chapter[1],
 							StringUtils.changeStringTile(pic[0], ".", ".co"), true, header, headerValue, 
-							pcb);
+							this);
 					}
 				}
 				
@@ -644,6 +830,10 @@ public class XImageView extends ImageView{
 	public void setIndex(int idx){
 		this.index = idx;
 	}
+
+    public int getIndex(){
+        return index;
+    }
 	
 	public void setShowProgress(boolean show){
 		showProgress = show;
@@ -653,6 +843,14 @@ public class XImageView extends ImageView{
 	public interface ClickListener{
 		void onClick(float x, float y);
 	}
+
+    OnViewModeChanged modeChanged = null;
+    public void setOnViewModeChangedListener(OnViewModeChanged lis){
+        this.modeChanged = lis;
+    }
+    public interface OnViewModeChanged{
+        void onViewModeChanged(int mode);
+    }
 	
 	OverscrollView osView;
 	public void setOverScrollView(OverscrollView ov){

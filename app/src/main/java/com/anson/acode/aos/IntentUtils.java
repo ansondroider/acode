@@ -4,11 +4,13 @@ import java.io.File;
 import java.util.List;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.text.TextUtils;
 
 import com.anson.acode.FileUtils;
 
@@ -16,14 +18,27 @@ public class IntentUtils {
 	
 	/**
 	 * open file auto.
-	 * @param context
-	 * @param f
+	 * @param context application or activity
+	 * @param f file
 	 */
 	public static final void openFile(Context context, File f){
 		Intent intent = new Intent(Intent.ACTION_VIEW);
 		intent.setDataAndType(Uri.parse("file://" + f.getAbsolutePath()), FileUtils.getFileMineType(f));
 		context.startActivity(intent);
 	}
+
+    /**
+     * intent of started HOME
+     * @return Intent of Home
+     */
+    public static Intent getHomeIntent(){
+
+        Intent mHomeIntent =  new Intent(Intent.ACTION_MAIN, null);
+        mHomeIntent.addCategory(Intent.CATEGORY_HOME);
+        mHomeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        return mHomeIntent;
+    }
 	
 	/**
 	 * url: eg. http://www.baidu.com
@@ -74,7 +89,7 @@ public class IntentUtils {
 	}
 	
 	/**
-	 * start activity by default; but catch not found Exception
+	 * started activity by default; but catch not found Exception
 	 * @param intent
 	 * @param context
 	 * @return
@@ -91,7 +106,7 @@ public class IntentUtils {
 	}
 	
 	/**
-	 * start activity by default Activity in package
+	 * started activity by default Activity in package
 	 * @param packageName
 	 * @param context
 	 */
@@ -109,9 +124,29 @@ public class IntentUtils {
 		}
 		return false;
 	}
+
+    /**
+     * get package intent from packagename
+     * @param packageName package name
+     * @param context context
+     * @return Intent of main Activity
+     */
+    public static Intent getIntentFromPackage(String packageName, Context context){
+        Intent intent = null;
+        if(!TextUtils.isEmpty(packageName)){
+            intent = getAppFilterIntent();
+            intent.setPackage(packageName);
+            List<ResolveInfo> rl = context.getPackageManager().queryIntentActivities(intent, 0);
+            if(rl != null && rl.size() > 0) {
+                ActivityInfo ai = rl.get(0).activityInfo;
+                intent.setComponent(new ComponentName(packageName, ai.name));
+            }
+        }
+        return intent;
+    }
 	
 	/**
-	 * start activity by ActivityInfo;
+	 * started activity by ActivityInfo;
 	 * if failed, add Flag FLAG_ACTIVITY_NEW_TASK;
 	 * if failed, find default activity in package;
 	 * @param ai

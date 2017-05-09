@@ -1,4 +1,4 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -6,6 +6,8 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.View;
+
+import com.anson.acode.R;
 
 public class OverscrollView extends View {
 	String TAG = "OverscrollView";
@@ -18,8 +20,8 @@ public class OverscrollView extends View {
 	
 	private final int DURATION = 200;
 	
-	private int maxScroll = 255;
-	private int minScroll = 0;
+	private int maxAlpha = 255;
+	private int minAlpha = 0;
 	
 	private int alpha = 0;
 	
@@ -30,24 +32,21 @@ public class OverscrollView extends View {
 	Handler h = new Handler(){
 		public void handleMessage(android.os.Message msg) {
 			moveStepByStep();
-		};
+		}
 	};
 	
 	public OverscrollView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	
 	public OverscrollView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	
 	public OverscrollView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	
@@ -60,7 +59,6 @@ public class OverscrollView extends View {
 	
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Auto-generated method stub
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		int width = MeasureSpec.getSize(widthMeasureSpec);
 		int height = MeasureSpec.getSize(heightMeasureSpec);
@@ -77,7 +75,7 @@ public class OverscrollView extends View {
 	}
 	public void setOverScroll(int direct, int distance){
 		alpha = distance;
-		alpha = alpha < 0 ? 0: (alpha > maxScroll ? maxScroll:alpha);
+		alpha = alpha < minAlpha ? minAlpha : (alpha > maxAlpha ? maxAlpha :alpha);
 		overscrollFlags |= direct;
 		postInvalidate();
 	}
@@ -88,7 +86,6 @@ public class OverscrollView extends View {
 	
 	@Override
 	protected void onDraw(Canvas canvas) {
-		// TODO Auto-generated method stub
 		//ALog.alog(TAG, "onDraw overscrollFlags = " + overscrollFlags);
 		if(canvas == null || overscrollFlags == 0)return;
 		if((over_left & overscrollFlags) > 0){
@@ -122,7 +119,7 @@ public class OverscrollView extends View {
 		long curTime = System.currentTimeMillis();
 		int passTime = (int)(curTime - startTime);
 		if(passTime < DURATION){
-			alpha = maxScroll - tranAlpha * passTime / DURATION;
+			alpha = maxAlpha - tranAlpha * passTime / DURATION;
 			h.sendEmptyMessageDelayed(0, 20);
 			postInvalidate();
 		}else{

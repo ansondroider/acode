@@ -197,7 +197,7 @@ public abstract class Part {
     }
     
     /**
-     * Write the start to the specified output stream
+     * Write the started to the specified output stream
      * @param out The output stream
      * @throws IOException If an IO problem occurs.
      */

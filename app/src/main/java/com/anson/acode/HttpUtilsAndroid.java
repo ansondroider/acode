@@ -6,6 +6,7 @@ import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.Message;
 
+import com.anson.acode.download.DownloadThread;
 import com.anson.acode.multipart.FilePart;
 import com.anson.acode.multipart.Part;
 import com.anson.acode.multipart.ProgressMultipartEntity;
@@ -67,8 +68,12 @@ public class HttpUtilsAndroid {
 	/** get Request */
 	public static HttpGet getGetRequest(String url){
 		HttpGet request;
-		if(url.contains(protocalSpec)) request = new HttpGet(url);
-        else request = new HttpGet(defaultProtocal + url);
+		if(url.contains(protocalSpec)){
+            request = new HttpGet(url);
+        }else{
+            //ALog.d(TAG, "getGetRequest " + (defaultProtocal + url));
+            request = new HttpGet(defaultProtocal + url);
+        }
 		return request;
 	}
 	
@@ -197,13 +202,14 @@ public class HttpUtilsAndroid {
 	/**
 	 * download file from url, and report progress by HttpUtilsAndroid.HttpProgressListener;
 	 * @param url request url
-	 * @param localFile local save path(abs)
+	 * @param localFolder local folder
+     * @param fileName local file name.
 	 * @param progressLis HttpProgressListener
 	 */
-	public static void downloadFileFromUrl(String url, String localFile, HttpProgressListener progressLis){
+	public static void downloadFileFromUrl(String url, String localFolder, String fileName, HttpProgressListener progressLis){
 
-		HttpClient client = HttpUtilsAndroid.getHttpClient();
-    	HttpGet req = HttpUtilsAndroid.getGetRequest(url);
+		HttpClient client = getHttpClient();
+    	HttpGet req = getGetRequest(url);
     	HttpResponse res;
     	boolean hasListener = progressLis != null;
 		try {
@@ -218,10 +224,12 @@ public class HttpUtilsAndroid {
 	    	long length = res.getEntity().getContentLength();
 	    	long progress = 0;
 	    	InputStream is = res.getEntity().getContent();
-			File lf = new File(localFile);
-			if(!lf.getParentFile().exists())
-                lf.getParentFile().mkdirs();
-
+			File lf = new File(localFolder);
+			if(!lf.exists()) {
+                boolean b = lf.mkdirs();
+                if(!b)ALog.w("create " + lf + " failed!");
+            }
+            lf = new File(localFolder + "/" + fileName);
 	    	FileOutputStream fos = new FileOutputStream(lf);
 	    	int readed;
 	    	byte[] buffer = new byte[CACHE_SIZE];
@@ -236,20 +244,23 @@ public class HttpUtilsAndroid {
 	    	fos.flush();
 	    	is.close();
 	    	fos.close();
+            if(hasListener)progressLis.onFinish();
 		} catch(Exception e){
 			e.printStackTrace();
 		}
 		
 	}
-	public static void downloadFileFromUrl(String url, String localPath, String fileName){
+	public static void downloadFileFromUrl(String url, String localFolder, String fileName){
 		byte[] data;
 		FileOutputStream fos = null;
 		try {
 			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
 			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(HttpUtilsAndroid.getGetRequest(url)), null);
-			File f = new File(localPath);
-			if(!f.exists())
-				f.mkdirs();
+			File f = new File(localFolder);
+			if(!f.exists()) {
+                boolean b = f.mkdirs();
+                if(!b)ALog.d(TAG, "create folder " + f.getAbsolutePath() + " failed");
+            }
 			fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
 			fos.write(data);
 			fos.flush();
@@ -265,6 +276,39 @@ public class HttpUtilsAndroid {
 			}
 		}
 	}
+
+    public static void downloadFileFromUrlByDownloadThread(String url, String localFolder, String fileName, DownloadThread thread){
+        byte[] data;
+        FileOutputStream fos = null;
+        try {
+            if(new File(localFolder + "/" + fileName).exists()){
+                ALog.d(TAG, "file exists ? should ignore ???");
+                return;
+            }
+            HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
+            HttpGet req = HttpUtilsAndroid.getGetRequest(url);
+            if(thread != null)thread.onRequestStart(req);
+            data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), thread);
+            File f = new File(localFolder);
+            if(!f.exists()) {
+                boolean b = f.mkdirs();
+                if(!b)ALog.d(TAG, "create folder " + f.getAbsolutePath() + " failed");
+            }
+            fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
+            fos.write(data);
+            fos.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally{
+            if(fos != null){
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 	
 	public static void downloadFileFromUrlWidthHeaders(String url, String localPath, String fileName, String header, String headerValue){
 		byte[] data;
@@ -298,13 +342,13 @@ public class HttpUtilsAndroid {
 	 * handle the response entity.
 	 * we can get the entity from response. and then convert to byte[].
 	 * if you want to see the content by string : String s = new String(byte[]);
-	 * if you want to write the content to a file: FileOutputStream.write(byte[], start, end);
+	 * if you want to write the content to a file: FileOutputStream.write(byte[], started, end);
 	 * @param response HttpResponse from request
 	 * @return byte[]
 	 */
-	public static byte[] getResponseEntityBytes(HttpResponse response, ProgressCallback cb){
-		
+	public static byte[] getResponseEntityBytes(HttpResponse response, HttpProgressListener cb){
 		HttpEntity entity= response.getEntity();
+        if(cb != null)cb.onResponse(response.getStatusLine().getStatusCode());
 		long contentLength = entity.getContentLength();
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		InputStream is = null;
@@ -314,27 +358,34 @@ public class HttpUtilsAndroid {
 			is = entity.getContent();
 			int i;
 			for(;;){
-				i = is.read(buffer);
-				if(i == -1){
+                if(cb != null && cb.canceled()){
+                    ALog.w("request canceled !!!");
+                    break;
+                }
+                i = is.read(buffer);
+                //ALog.d(TAG, "getResponseEntityBytes fall in loop read " + i + "," + is.available() + ", " + contentLength);
+                if(i == -1){
 					if(contentLength > 0 && contentLength > currentLength){
-						Thread.sleep(50);
-					}else if(contentLength < 0){
+						Thread.sleep(10);
+					}else if(contentLength <= 0){
+                        //OK, we could NOT found content from InputStream, so, just skip
 						break;
 					}
 				}else{
 					bos.write(buffer, 0, i);
 					currentLength += i >= 0 ? i:0;
 					if(currentLength == contentLength){
-						if(cb != null)cb.onProgressChange((int)currentLength, (int)contentLength);
+						if(cb != null)cb.onProgress(currentLength, contentLength);
 						break;
 					}
 				}
-				if(cb != null)cb.onProgressChange((int)currentLength, (int)contentLength);
+				if(cb != null)cb.onProgress(currentLength, contentLength);
 			}
 		}catch(Exception e){
 			e.printStackTrace();
 		}finally{
 			try {
+                if(cb != null)cb.onFinish();
 				bos.flush();
 				bos.close();
 				if(is != null)is.close();
@@ -397,17 +448,7 @@ public class HttpUtilsAndroid {
 	public static boolean isWIFI(int type){
 		return ConnectivityManager.TYPE_WIFI == type;
 	}
-	
-	abstract static class ProgressCallback{
-		private int id;
-		public void setId(int id){
-			this.id = id;
-		}
-		public int getId(){
-			return id;
-		}
-		public abstract void onProgressChange(int progress, int full);
-	}
+
 	/**
 	 * return path for image saved
 	 * eg. url = http://www.baidu.com/pic/logo.png
@@ -466,9 +507,11 @@ public class HttpUtilsAndroid {
 		
 	}
 	
-	public interface HttpProgressListener{
+	public static interface HttpProgressListener{
+        boolean canceled();
         void onRequestStart(HttpRequestBase req);
 		void onResponse(int code);
 		void onProgress(long progress, long size);
+        void onFinish();
 	}
 }

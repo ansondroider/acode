@@ -1,8 +1,9 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import java.util.ArrayList;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
@@ -10,8 +11,13 @@ import android.view.GestureDetector.OnGestureListener;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+
+import com.anson.acode.ALog;
+import com.anson.acode.AnimationHelper;
+
 public class NavigateView extends ViewGroup {
-	private final int DURATION = 500;
+	private int DURATION = 750;
+    private int duration = DURATION;
 	private final int MSG_MOVESBS = 30;
 	private int currentScreen = 0;
 	private boolean inited = false;
@@ -31,69 +37,56 @@ public class NavigateView extends ViewGroup {
 	public NavigateView(Context context) {
 		super(context);
 		init();
-		// TODO Auto-generated constructor stub
 	}
 	public NavigateView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		init();
-		// TODO Auto-generated constructor stub
 	}
 	public NavigateView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		init();
-		// TODO Auto-generated constructor stub
 	}
 	public void setScreen(int i){
 		currentScreen = i;
 	}
 	int guessDistance = 0;
+    float velX;
+    int scrollDir = -1;//-1:nospecial; 0:LNR; 1:TNB
 	void init(){
-		detector = new GestureDetector(new OnGestureListener() {
-				
+        Resources res = getResources();
+        DURATION = (int)(res.getDisplayMetrics().widthPixels/res.getDisplayMetrics().density);
+        detector = new GestureDetector(new OnGestureListener() {
 				@Override
 				public boolean onSingleTapUp(MotionEvent e) {
-					// TODO Auto-generated method stub
-					//log("onSingleTapUp");
 					return false;
 				}
-				
+
 				@Override
-				public void onShowPress(MotionEvent e) {
-					// TODO Auto-generated method stub
-					//log("onShowPress");
-					
-				}
+				public void onShowPress(MotionEvent e) {}
 				
 				@Override
 				public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
 						float distanceY) {
-					// TODO Auto-generated method stub
+                    if(!scrollEnabled)return false;
 					//log("onScroll, disX = " + distanceX + ", disY = " +distanceY);
-					if(Math.abs(distanceX) < Math.abs(distanceY))return false;
-					/*if(Math.abs(distanceX) < Math.abs(distanceY)) {
-						e1.setAction(MotionEvent.ACTION_DOWN);
-						dispatchTouchEvent(e1);
-						return false;
-					}*/
+                    if(scrollDir == -1)scrollDir = Math.abs(distanceX) < Math.abs(distanceY) ? 1 : 0;
+					if(scrollDir != 0)return false;
+
 					updateOffset((int)(offsetXY - distanceX));
-					//requestLayout();
 					return true;
 					
 				}
 				
 				@Override
-				public void onLongPress(MotionEvent e) {
-					// TODO Auto-generated method stub
-					log("onLongPress");
-					
-				}
+				public void onLongPress(MotionEvent e) {}
 				
 				@Override
 				public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
 						float velocityY) {
-					// TODO Auto-generated method stub
+                    if(!scrollEnabled)return false;
 					//log("onFling" + ", velocityX = " + velocityX + ", velocityY = " + velocityY);
-					guessDistance = (int)velocityX/8;
+                    velX = velocityX;
+					guessDistance = scrollDir == 0 ? (int)velocityX/8 : 0;
 					onTouchRelease();
 					
 					return false;
@@ -101,8 +94,7 @@ public class NavigateView extends ViewGroup {
 				
 				@Override
 				public boolean onDown(MotionEvent e) {
-					// TODO Auto-generated method stub
-					//log("onDown");
+                    scrollDir = -1;
 					return false;
 				}
 			});
@@ -112,7 +104,6 @@ public class NavigateView extends ViewGroup {
 	private int mHeight = 0;
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Auto-generated method stub
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		mWidth = MeasureSpec.getSize(widthMeasureSpec);
 		mHeight = MeasureSpec.getSize(heightMeasureSpec);
@@ -136,7 +127,6 @@ public class NavigateView extends ViewGroup {
 	boolean layouted = false;
 	@Override
 	protected void onLayout(boolean arg0, int l, int t, int r, int b) {
-		// TODO Auto-generated method stub
 		if(layouted && mHeight == (t-b))return;
 		int childcount = getChildCount() -1;
 		if(viewLeft == null || viewLeft.length != childcount){
@@ -158,7 +148,6 @@ public class NavigateView extends ViewGroup {
 	}
 	@Override
 	public void scrollTo(int x, int y) {
-		// TODO Auto-generated method stub
 		super.scrollTo(x, y);
 		int childcount = getChildCount() -1;
 		if(viewLeft == null || viewLeft.length != childcount){
@@ -171,6 +160,15 @@ public class NavigateView extends ViewGroup {
 			}
 		}
 	}
+
+    boolean scrollEnabled = true;
+    public void disableScroll(){
+        scrollEnabled = false;
+    }
+
+    public void enableScroll(){
+        scrollEnabled = true;
+    }
 	
 	
 	/** touch Event handle ***/
@@ -179,12 +177,12 @@ public class NavigateView extends ViewGroup {
 	
 	@Override
 	public boolean onInterceptTouchEvent(MotionEvent ev) {
-		// TODO Auto-generated method stub
 		boolean spend = false;
 		spend = detector.onTouchEvent(ev);
 		switch(ev.getAction()){
 		case MotionEvent.ACTION_DOWN:
-			//log("onInterceptTouchEvent.ACTION_DOWN, " + spend);
+            h.removeMessages(MSG_MOVESBS);
+            //log("onInterceptTouchEvent.ACTION_DOWN, " + spend);
 			break;
 		case MotionEvent.ACTION_MOVE:
 			//log("onInterceptTouchEvent.ACTION_MOVE, " + spend);
@@ -192,11 +190,9 @@ public class NavigateView extends ViewGroup {
 			break;
 		case MotionEvent.ACTION_UP:
 			//log("onInterceptTouchEvent.ACTION_UP, " + spend);
-			//onTouchRelease();
 			break;
 		case MotionEvent.ACTION_CANCEL:
 			//log("onInterceptTouchEvent.ACTION_CANCEL, " + spend);
-			//onTouchRelease();
 			break;
 		}
 		
@@ -206,7 +202,6 @@ public class NavigateView extends ViewGroup {
 	
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		// TODO Auto-generated method stub
 		boolean spend = false;
 		spend = detector.onTouchEvent(event);
 		switch(event.getAction()){
@@ -220,7 +215,6 @@ public class NavigateView extends ViewGroup {
 			break;
 		case MotionEvent.ACTION_UP:
 			//log("onTouchEvent.ACTION_UP, " + spend);
-			//onTouchRelease();
 			break;
 		}
 		if(event.getAction() == MotionEvent.ACTION_UP){
@@ -243,7 +237,7 @@ public class NavigateView extends ViewGroup {
 		}
 		//updateOffset(viewLeft[0]);
 		//log("offsetXY = " + offsetXY + ", dis = " + viewLeft[nidx]);
-		startTranslation(-viewLeft[nidx], DURATION);
+		startTranslation(-viewLeft[nidx]);
 	}
 	
 	long startTime = 0;
@@ -251,20 +245,21 @@ public class NavigateView extends ViewGroup {
 	int origin = 0;
 	int target = 0;
 	int mDis = 0;
-	void startTranslation(int dis, int time){
+	void startTranslation(int dis){
 		startTime = System.currentTimeMillis();
-		endTime = startTime + time;
 		origin = offsetXY;
 		target = offsetXY + dis;
 		mDis = dis;
-		h.sendEmptyMessage(MSG_MOVESBS);
+        duration = DURATION * Math.abs(mDis) / mWidth;
+        endTime = startTime + duration;
+        h.sendEmptyMessage(MSG_MOVESBS);
 	}
 	
 	boolean moveStepByStep(){
 		long cTime = System.currentTimeMillis();
 		if(cTime < endTime){
 			long time = cTime - startTime;
-			updateOffset(origin + (int)(mDis * AnimationHelper.getMoveRate((int)time, DURATION, false)));
+			updateOffset(origin + (int)(mDis * AnimationHelper.getMoveRate((int)time, duration, false)));
 			//requestLayout();
 			h.sendEmptyMessage(MSG_MOVESBS);
 			return false;
@@ -275,6 +270,11 @@ public class NavigateView extends ViewGroup {
 			return true;
 		}
 	}
+
+    public boolean isScrollEnd(){
+        //java.lang.ArithmeticException: divide by zero
+        return 0 < getWidth() && getScrollX() % getWidth() == 0;
+    }
 	
 	public void scrollToScreen(int screen){
 		int left0 = viewLeft[0];
@@ -293,7 +293,7 @@ public class NavigateView extends ViewGroup {
 		}
 		updateOffset(viewLeft[0]);
 		//log("offsetXY = " + offsetXY + ", dis = " + viewLeft[nidx]);
-		startTranslation(-viewLeft[nidx], DURATION);
+		startTranslation(-viewLeft[nidx]);
 	}
 	
 	public void moveToNext(){
@@ -309,7 +309,7 @@ public class NavigateView extends ViewGroup {
 		}
 		updateOffset(viewLeft[0]);
 		//log("offsetXY = " + offsetXY + ", dis = " + viewLeft[nidx]);
-		startTranslation(-viewLeft[nidx], DURATION);
+		startTranslation(-viewLeft[nidx]);
 	}
 	
 	public boolean moveToPre(){
@@ -326,35 +326,31 @@ public class NavigateView extends ViewGroup {
 		}
 		updateOffset(viewLeft[0]);
 		//log("offsetXY = " + offsetXY + ", dis = " + viewLeft[nidx]);
-		startTranslation(-viewLeft[nidx], DURATION);
+		startTranslation(-viewLeft[nidx]);
 		return true;
 	}
-	
-	
-	void log(int i){
-		android.util.Log.d("NavigateView", "ALog > " + i);
-	}
-	void log(String s){
-		android.util.Log.d("NavigateView", "ALog > " + s);
-	}
-	
+
 	private void updateOffset(int off){
 		offsetXY = off;
 		scrollTo(-offsetXY, 0);
 		for(ScreenSwitchListener l:listeners){
 			l.onScroll(offsetXY);
+            int screen = -(offsetXY - mWidth/2) / mWidth;
+            screen = screen < 0 ? 0 : screen;
+            screen = screen > getChildCount() - 1 ? getChildCount() - 1 : screen;
+            //ALog.d("updateOffset screen=" + screen + "," + offsetXY);
+            if(currentScreen != screen){
+                currentScreen = screen;
+                l.switchToScreen(currentScreen);
+            }
 		}
 		invalidate();
 	}
-	
-	private void updateScreen(int screen){
-		for(ScreenSwitchListener l:listeners){
-			l.switchToScreen(screen);
-		}
-	}
-	
+
 	public int getScreen(){
-		return origin != offsetXY ? -target /mWidth:getScrollX()/mWidth;
+		return origin != offsetXY ?
+                -target /mWidth :
+                getScrollX()/mWidth;
 	}
 	
 	/**
@@ -373,13 +369,13 @@ public class NavigateView extends ViewGroup {
 		/**
 		 * screen will change from 0 to X
 		 * this methid is called when screen index changed.
-		 * @param screen
+		 * @param screen screen index
 		 */
 		void switchToScreen(int screen);
 		
 		/**
 		 * the offset is the value of all children layout offset in X
-		 * @param offset
+		 * @param offset offset of X
 		 */
 		void onScroll(int offset);
 	}

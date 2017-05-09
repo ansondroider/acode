@@ -1,8 +1,10 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
-import com.anson.acode.NavigateView.ScreenSwitchListener;
+import com.anson.acode.ALog;
+import com.anson.acode.AnimationHelper;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
@@ -10,53 +12,61 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.GestureDetector.OnGestureListener;
-import android.view.View.MeasureSpec;
-import android.widget.ImageView.ScaleType;
+
+import java.lang.ref.WeakReference;
 
 public class ComicView extends ViewGroup implements XImageView.ClickListener{
+    final String TAG = "ComicView";
 	GestureDetector detector;
-	private final int DURATION = 500;
-	final int MSG_MOVESBS = 30;
+	int DURATION = 800;
+    private int duration = DURATION;
+	final static int MSG_MOVESBS = 20;
+    //sometimes, we just scroll, do NOT call callback.
+    boolean cancelScrollListener = false;
 	OverscrollView ov;
-	Handler h = new Handler(){
+	H h;
+    static class H extends Handler{
+        WeakReference<ComicView> a;
+        H(ComicView cv){
+            a = new WeakReference<ComicView>(cv);
+        }
 		public void handleMessage(android.os.Message msg) {
+            if(a.get() == null) return;
 			switch(msg.what){
 			case MSG_MOVESBS:
-				moveStepByStep();
+				a.get().moveStepByStep();
 				break;
 			}
-		};
-	};
+		}
+	}
 	public ComicView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public ComicView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public ComicView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	int guessDistance = 0;
 	void init(){
-		detector = new GestureDetector(new OnGestureListener() {
+        Resources res = getResources();
+        DURATION = (int)(res.getDisplayMetrics().widthPixels/res.getDisplayMetrics().density);
+        h = new H(this);
+		detector = new GestureDetector(getContext(), new OnGestureListener() {
 				
 				@Override
 				public boolean onSingleTapUp(MotionEvent e) {
-					// TODO Auto-generated method stub
 					//log("onSingleTapUp");
-					ov.touchRelease();
+                    if(ov != null)ov.touchRelease();
 					return false;
 				}
 				
 				@Override
 				public void onShowPress(MotionEvent e) {
-					// TODO Auto-generated method stub
 					//log("onShowPress");
 					
 				}
@@ -64,7 +74,6 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 				@Override
 				public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
 						float distanceY) {
-					// TODO Auto-generated method stub
 					//log("onScroll, disX = " + distanceX + ", disY = " +distanceY);
 					if(Math.abs(distanceX) < Math.abs(distanceY))return false;
 					/*if(Math.abs(distanceX) < Math.abs(distanceY)) {
@@ -80,14 +89,12 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 				
 				@Override
 				public void onLongPress(MotionEvent e) {
-					// TODO Auto-generated method stub
-					
+
 				}
 				
 				@Override
 				public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
 						float velocityY) {
-					// TODO Auto-generated method stub
 					//log("onFling" + ", velocityX = " + velocityX + ", velocityY = " + velocityY);
 					guessDistance = (int)velocityX/8;
 					//onTouchRelease();
@@ -97,7 +104,6 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 				
 				@Override
 				public boolean onDown(MotionEvent e) {
-					// TODO Auto-generated method stub
 					//log("onDown");
 					return false;
 				}
@@ -105,16 +111,19 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	}
 	
 	/** touch Event handle ***/
-	private int ox = 0;
-	private int oy = 0;
+	//private int ox = 0;
+	//private int oy = 0;
 	
 	@Override
 	public boolean onInterceptTouchEvent(MotionEvent ev) {
-		// TODO Auto-generated method stub
-		boolean spend = false;
-		spend = detector.onTouchEvent(ev);
+		boolean spend = detector.onTouchEvent(ev);
 		switch(ev.getAction()){
 		case MotionEvent.ACTION_DOWN:
+            if(isAnimating) {
+                h.removeMessages(MSG_MOVESBS);
+                isAnimating = false;
+                return true;
+            }
 			//log("onInterceptTouchEvent.ACTION_DOWN, " + spend);
 			break;
 		case MotionEvent.ACTION_MOVE:
@@ -124,7 +133,7 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 		case MotionEvent.ACTION_UP:
 			//log("onInterceptTouchEvent.ACTION_UP, " + spend);
 			//onTouchRelease();
-			ov.clear();
+            if(ov != null)ov.clear();
 			break;
 		case MotionEvent.ACTION_CANCEL:
 			//log("onInterceptTouchEvent.ACTION_CANCEL, " + spend);
@@ -138,9 +147,7 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		// TODO Auto-generated method stub
-		boolean spend = false;
-		spend = detector.onTouchEvent(event);
+		boolean spend = detector.onTouchEvent(event);
 		switch(event.getAction()){
 		case MotionEvent.ACTION_DOWN:
 			//log("onTouchEvent.ACTION_DOWN, " + spend);
@@ -164,9 +171,10 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	void onTouchRelease(){
 		int nidx = 0;
 		int defDis = Integer.MAX_VALUE;
-		final int count = pages.length;
+		final int count = pageCount;///pages.length;
 		final int sx = getScrollX();
 		for(int i=0; i<count;i++){
+            if(getChildAt(i) == null)continue;
 			int left = getChildAt(i).getLeft() - sx + guessDistance;
 			//ALog.alog("ComicView", " i = " + i + " = " + left);
 			int abs = Math.abs(left);
@@ -181,7 +189,7 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 			if(sx > 0)sListener.onOverScroll(true);
 			if(sx < -mWidth * (count-1)) sListener.onOverScroll(false);
 		}
-		ov.touchRelease();
+        if(ov != null)ov.touchRelease();
 	}
 	
 	long startTime = 0;
@@ -189,47 +197,57 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	int origin = 0;
 	int target = 0;
 	int mDis = 0;
+    boolean isAnimating = false;
 	void startTranslation(int dis, int time){
+        isAnimating = true;
 		startTime = System.currentTimeMillis();
-		endTime = startTime + time;
 		origin = getScrollX();
-		target = getScrollX() + dis;
-		mDis = dis;
-		h.sendEmptyMessage(MSG_MOVESBS);
+        target = getScrollX() + dis;
+        mDis = dis;
+        duration = (int)Math.abs(DURATION * mDis / (float)getWidth());
+        duration = Math.min(DURATION, duration);
+        endTime = startTime + duration;
+        h.sendEmptyMessage(MSG_MOVESBS);
 	}
 	
 	boolean moveStepByStep(){
 		long cTime = System.currentTimeMillis();
 		if(cTime < endTime){
 			long time = cTime - startTime;
-			scrollTo(origin + (int)(mDis * AnimationHelper.getMoveRate((int)time, DURATION, false)),0);
+            float passed = AnimationHelper.getMoveRate((int)time, duration, false);
+			scrollTo(origin + (int)(mDis * passed), 0);
+            ALog.d(TAG, "moveStepByStep time(" + time + "), passed(" + passed + "), scrollX(" + getScrollX() + ")");
 			//requestLayout();
 			h.sendEmptyMessage(MSG_MOVESBS);
 			return false;
 		}else{
-			scrollTo(target, 0);
+            cancelScrollListener = false;
+            scrollTo(target, 0);
 			origin = getScrollX();
+            isAnimating = false;
 			//requestLayout();
 			return true;
 		}
 	}
 	
 	public void scrollToScreen(int screen){
-		screen = screen < 1 ? 1 : (screen > pages.length ? pages.length:screen);
-		int left = getChildAt(screen -1).getLeft() - getScrollX();
+		///screen = screen < 1 ? 1 : (screen > pages.length ? pages.length:screen);
+        screen = screen < 1 ? 1 : (screen > pageCount ? pageCount:screen);
+		int left = (screen - 1) * -mWidth - getScrollX();
 		startTranslation(left, DURATION);
 	}
 	
 	public int getCurrentScreen(){
-		return Math.abs(getScrollX() /mWidth) + 1;
+		return currentScreen;
 	}
 
 	private int mWidth = 0;
 	private int mHeight = 0;
+    private int hw = 0;
 	
 	public interface ScrollListener{
-		public void onOffsetChanged(int offset);
-		public void onOverScroll(boolean isOverLeft);
+		void onOffsetChanged(int offset);
+		void onOverScroll(boolean isOverLeft);
 	}
 	
 	ScrollListener sListener;
@@ -243,52 +261,141 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	}
 	@Override
 	public void scrollBy(int x, int y) {
-		// TODO Auto-generated method stub
 		super.scrollBy(x, y);
-		if(null != sListener){
+		if(null != sListener && !cancelScrollListener){
 			sListener.onOffsetChanged(getScrollX());
 		}
-		invalidate();
+        updateScreen();
 	}
+
+    int currentScreen = 0;
+    void updateScreen(){
+        //page i: -(1/2 + i) * W/2
+        //           < x <=
+        //         (1/2 -1) * W/2
+        int sx = getScrollX();
+        //ALog.d(TAG, "sx:hw:mWidth" + sx + ":" + hw + ":" + mWidth);
+        int screen;
+        if(sx > -hw){
+            screen = -(sx + hw)/mWidth;
+        }else{
+            screen = -(sx - hw)/mWidth;
+        }
+        //onPageChanged...
+        if(screen != currentScreen){
+            currentScreen = screen;
+            ALog.d(TAG, "currentScreen=" + currentScreen);
+        }
+    }
 	@Override
 	public void scrollTo(int x, int y) {
-		// TODO Auto-generated method stub
+        //ALog.d(TAG, "scrollTo " + x);
 		super.scrollTo(x, y);
-		if(null != sListener){
+		if(null != sListener && !cancelScrollListener){
 			sListener.onOffsetChanged(getScrollX());
 		}
-		postInvalidate();
+        updateScreen();
 	}
 	
-	XImageView[] pages;
-	
-	public void setPageCount(int count, OnLongClickListener longListener, int viewMode, OverscrollView ov){
-		pages = new XImageView[count];
-		for(int i= 0; i<count;i++){
-			XImageView xiv = new XImageView(getContext());
-			xiv.setOnLongClickListener(longListener);
-			xiv.setIndex(i);
-			xiv.setViewMode(viewMode);
-			xiv.setOverScrollView(ov);
-			xiv.setClickListener(this);
-			pages[i] = xiv;
-			addView(xiv);
-		}
-		this.ov = ov;
+	int pageCount = 0;
+    int viewMode = XImageView.VMODE_NORMAL;
+    XImageView.OnViewModeChanged modeChangedLis;
+    OnLongClickListener longLis;
+    XImageView[] currentViews;
+	public void setPageCount(int count, OnLongClickListener longListener, int viewMode, OverscrollView ov, XImageView.OnViewModeChanged modeChangeLis){
+        pageCount = count;
+        this.viewMode = viewMode;
+        modeChangedLis = modeChangeLis;
+        longLis = longListener;
+        this.ov = ov;
+        currentViews = new XImageView[pageCount];
+        //some chapter may be just one page
+        for(int i= 0; i < Math.min(2, pageCount); i++){
+            addView(createImageView(i));
+        }
 		requestLayoutForce(true);
 	}
-	
-	public void setPage(int page){
+
+    public void setViewMode(int mode){
+        viewMode = mode;
+        for(int i = 0; i < pageCount; i ++){
+            XImageView v = currentViews[i];
+            if(v != null){
+                v.setViewMode(mode);
+            }
+        }
+    }
+
+    XImageView createImageView(int index){
+        XImageView xiv = new XImageView(getContext());
+        xiv.setOnLongClickListener(longLis);
+        xiv.setIndex(index);
+        xiv.setViewMode(viewMode);
+        xiv.setOnViewModeChangedListener(modeChangedLis);
+        xiv.setOverScrollView(ov);
+        xiv.setClickListener(this);
+        return xiv;
+    }
+
+    public View getViewAndAddToShow(int position){
+        XImageView v = currentViews[position];
+        if(v == null){
+            v = createImageView(position);
+            this.addView(v);
+        }
+        //requestLayout();
+        return v;
+    }
+
+    public void recycleView(int position){
+        XImageView v = currentViews[position];
+        if(v != null){
+            v.recycle();
+            removeView(v);
+            currentViews[position] = null;
+            logViewsState();
+        }
+    }
+
+    public void recycle(){
+        for(int i = 0; i < pageCount; i ++){
+            recycleView(i);
+        }
+        currentViews = null;
+        h.removeMessages(MSG_MOVESBS);
+        scrollTo(0, 0);
+    }
+
+    void logViewsState(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("currentViews:\n");
+        for(int i = 0; i < pageCount; i ++){
+            sb.append(currentViews[i] == null ? "0" : "1").append(", ");
+        }
+
+        ALog.d(TAG, sb.toString());
+    }
+
+    @Override
+    public void addView(View child) {
+        XImageView xiv = (XImageView)child;
+        currentViews[xiv.getIndex()] = xiv;
+        //ALog.d(TAG, "addView " + xiv.getIndex());
+        super.addView(child);
+    }
+
+    public void setPage(int page){
+        cancelScrollListener = true;
 		scrollToScreen(page);
 	}
 	
 	boolean inited = false;
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Auto-generated method stub
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		mWidth = MeasureSpec.getSize(widthMeasureSpec);
 		mHeight = MeasureSpec.getSize(heightMeasureSpec);
+        hw = mWidth/2;
 		int count = getChildCount();
 		for(int i=0; i<count; i++){
 			getChildAt(i).measure(widthMeasureSpec, heightMeasureSpec);
@@ -304,15 +411,12 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	boolean layouted = false;
 	@Override
 	protected void onLayout(boolean arg0, int l, int t, int r, int b) {
-		// TODO Auto-generated method stub
 		if(layouted && mHeight == (t-b))return;
 		int childcount = getChildCount() -1;
 		if(childcount > -1){
 			for(int i=0; i<=childcount; i++){
-				View v = getChildAt(i);
-				//int mw = v.getWidth();
-				//int mh = v.getHeight();
-				int left = -i * mWidth;
+				XImageView v = (XImageView)getChildAt(i);
+				int left = v.getIndex() * - mWidth;
 				//v.layout(left, 0, left + mw, mh);
 				v.layout(left, 0, left + mWidth, mHeight);
 			}
@@ -330,7 +434,6 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 	
 	@Override
 	public void onClick(float x, float y) {
-		// TODO Auto-generated method stub
 		int halfW = mWidth >> 1;
 		int curIdx = -getScrollX() / mWidth + 1;
 		int tarIdx = x > halfW ? curIdx-1:curIdx+1;

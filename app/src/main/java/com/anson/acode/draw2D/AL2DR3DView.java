@@ -87,17 +87,14 @@ public abstract class AL2DR3DView<E extends ImageObject2> extends SurfaceView im
 	/** Construction Method */
 	public AL2DR3DView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public AL2DR3DView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 	public AL2DR3DView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 		init();
 	}
 
@@ -225,7 +222,7 @@ public abstract class AL2DR3DView<E extends ImageObject2> extends SurfaceView im
 	 *  this method MUST called before initView();
 	 *  it can cause the view will clean all imageobject.
 	 *  becaust the surfaceview will run if life like this:
-	 *  create -> changed -> destroy -> create -> changed -> start your view...
+	 *  create -> changed -> destroy -> create -> changed -> started your view...
 	 * @param tran
 	 */
 	public void setTranslucent(boolean tran){
@@ -249,7 +246,7 @@ public abstract class AL2DR3DView<E extends ImageObject2> extends SurfaceView im
 	public abstract void initView(int w, int h);
 	
 	/**
-	 * This method called when the animation start;
+	 * This method called when the animation started;
 	 */
 	public abstract void onMoveAnimationStart();
 	

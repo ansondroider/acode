@@ -33,7 +33,7 @@ import android.text.TextPaint;
 public class StringUtils {
 
 	/**
-	 * split the spical String from res, start with startStr and end with endStr.
+	 * split the spical String from res, started with startStr and end with endStr.
 	 * eg. res = tag abcde /tag
 	 *     startStr = tag
 	 *     endStr = /tag
@@ -89,10 +89,10 @@ public class StringUtils {
 	 * strS = son
 	 * strE = stri
 	 * it's will return "laitest " 
-	 * @param src
-	 * @param strS
-	 * @param strE
-	 * @return
+	 * @param src source string
+	 * @param strS started string
+	 * @param strE end string
+	 * @return string you want
 	 */
 	public static String getSpecialStringFromStartNEnd(String src, String strS, String strE){
 		int idx = -1;
@@ -255,7 +255,7 @@ public class StringUtils {
 	
 	
 	/**
-	 * find spec in str, and return string start with
+	 * find spec in str, and return string started with
 	 * @param str
 	 * @param spec
 	 * @param length
@@ -544,6 +544,30 @@ public class StringUtils {
 		DecimalFormat df = new DecimalFormat(format);
 		return df.format(f);
 	}
+
+    /**
+     * get string of byte array
+     * eg. [0x0, 0x0, 0x1, 0x1,    0x1......]
+     * @param bs byte array
+     * @return String
+     */
+    public static String getByteArrayString(byte[] bs){
+        StringBuilder sb = new StringBuilder();
+        if(bs != null){
+            sb.append("array(byte)=[");
+            for(int i = 0; i < bs.length; i++){
+                byte b = bs[i];
+                String bStr = Integer.toHexString(b & 0xFF);
+                sb.append(bStr.length() == 1 ? "0x0":"0x").append(bStr).append(",");
+                if((i + 1) % 4 == 0)sb.append("    ");
+            }
+            sb.append("]");
+        }else{
+            sb.append("byte array is NULL");
+        }
+
+        return sb.toString();
+    }
 	/**
 	 * 012-> 012
 0123-> 012-3

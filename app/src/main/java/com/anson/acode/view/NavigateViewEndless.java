@@ -1,4 +1,4 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import java.util.ArrayList;
 
@@ -11,6 +11,9 @@ import android.view.GestureDetector.OnGestureListener;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+
+import com.anson.acode.ALog;
+
 public class NavigateViewEndless extends ViewGroup {
 	final String tag = "NavigateViewEndless";
 	

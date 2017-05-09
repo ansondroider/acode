@@ -3,8 +3,18 @@ package com.anson.acode.pm;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.content.res.XmlResourceParser;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
+import android.util.DisplayMetrics;
+
+import com.anson.acode.ALog;
+
+import org.xmlpull.v1.XmlPullParser;
+
+import java.io.File;
 
 public class XPackageInfo {
 	String apkFile;
@@ -14,6 +24,7 @@ public class XPackageInfo {
 	int icon;
 	Resources res;
 	PackageInfo p;
+    public static final String TAG = "XPackageInfo";
 	
 	public XPackageInfo(PackageInfo pi, PackageManager pm){
 		p = pi;
@@ -115,5 +126,59 @@ public class XPackageInfo {
 		sb.append("Label=").append(label).append("\n\n");
 		return sb.toString();
 	}
+
+    /*public static String[] parseActivities(File f, Resources res){
+        String[] result = new String[2];
+        String mArchiveSourcePath = f.getPath();
+        XmlResourceParser parser;
+        AssetManager assmgr;
+        try {
+            assmgr = new AssetManager();
+            int cookie = assmgr.addAssetPath(mArchiveSourcePath);
+            if (cookie != 0) {
+                //res = new Resources(assmgr, res.getDisplayMetrics(), null);
+                assmgr.setConfiguration(0, 0, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        17);
+                parser = assmgr.openXmlResourceParser(cookie, "AndroidManifest.xml");
+
+                int type;
+                int outerDepth = parser.getDepth();
+                StringBuilder sb = new StringBuilder();
+                while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
+                        && (type != XmlPullParser.END_TAG || parser.getDepth() > outerDepth)) {
+
+                    int depth = parser.getDepth();
+                    //sb.append("\nSTART\n");
+                    String tagName = parser.getName();
+                    if(type == XmlPullParser.END_TAG){
+                        continue;
+                    }
+                    //sb.append(tagName);
+                    int attrCount = parser.getAttributeCount();
+                    if(attrCount > 0 && tagName.contains("activity")){
+                        for(int i = 0; i < attrCount; i ++){
+                            String attrName = parser.getAttributeName(i);
+                            String attrValue = parser.getAttributeValue(i);
+
+                            if(attrName.equals("name")){
+                                sb.append(attrValue).append("\n");
+                            }
+                        }
+                    }
+                    //sb.append("\nEND\n");
+                }
+                //sb.delete(sb.length()-3, sb.length()-1);
+                result = sb.toString().split("\n");
+                ALog.d("parseActivities found " + result.length + " activity");
+
+            } else {
+                ALog.alog(TAG, "Failed adding asset path:" + mArchiveSourcePath);
+            }
+        } catch (Exception e) {
+            ALog.alog(TAG, "Unable to read AndroidManifest.xml of "
+                    + mArchiveSourcePath);
+        }
+        return result;
+    }*/
 	
 }

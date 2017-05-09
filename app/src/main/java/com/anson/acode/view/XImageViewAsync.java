@@ -1,4 +1,4 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import java.io.File;
 
@@ -10,22 +10,24 @@ import android.util.AttributeSet;
 import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 
+import com.anson.acode.ALog;
+import com.anson.acode.BitmapUtils;
+import com.anson.acode.R;
+
 public class XImageViewAsync extends ImageView {
 	private String imgPath;
 	private String TAG = "XImageViewAsync";
 	private Bitmap mImage = null;
+    boolean D = false;
 	Handler h = new Handler();
 	public XImageViewAsync(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 	}
 	public XImageViewAsync(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		// TODO Auto-generated constructor stub
 	}
 	public XImageViewAsync(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 	}
 	
 	boolean needLoad = false;
@@ -42,22 +44,23 @@ public class XImageViewAsync extends ImageView {
 		this.save = save;
 	}
 	public void setImagePath(final String url){
-		setImageResource(R.drawable.thumb);
 		//ALog.alog(TAG, "setImagePath(" + url + "), imagePath = " + imgPath);
 		if(url != null && url.length() > 4){
-			//if(!url.equals(imgPath)){
-				stopLoad();
+			if(!url.equals(imgPath)){
+                setImageResource(R.drawable.thumb);
+                stopLoad();
 				imgPath = url;
 				needLoad = true;
-			//}
+			}
 		}else{
-			imgPath = url;
+            setImageResource(R.drawable.thumb);
+            imgPath = url;
 			needLoad = false;
 		}
 	}
 	public void startLoadIfNeed(){
 		if(needLoad && imgPath != null){
-			ALog.alog(TAG, "startLoadIfNeed");
+			if(D)ALog.alog(TAG, "startLoadIfNeed");
 			loadTask = new Task();
 			loadTask.execute(0);
 			needLoad = false;
@@ -79,8 +82,12 @@ public class XImageViewAsync extends ImageView {
 	}
 	void updateImage(){
 		//ALog.alog(TAG, "updateImage");
-		this.setImageBitmap(nxtBm);
-		startAnimation(AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_in));
+        if(nxtBm != null){
+		    this.setImageBitmap(nxtBm);
+		    startAnimation(AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_in));
+        }else{
+            setImageResource(R.drawable.thumb);
+        }
 	}
 	
 	public void setImageBitmap(Bitmap bm) {
@@ -90,7 +97,7 @@ public class XImageViewAsync extends ImageView {
 		if(pre != null && pre != mImage){
 			pre.recycle();
 		}
-	};
+	}
 	
 	protected void onDraw(android.graphics.Canvas canvas) {
 		try{
@@ -99,7 +106,7 @@ public class XImageViewAsync extends ImageView {
 			ALog.alog(TAG, "error onDraw()");
 			updateImage();
 		}
-	};
+	}
 	
 	Task loadTask = null;
 	Bitmap nxtBm = null;
@@ -107,7 +114,6 @@ public class XImageViewAsync extends ImageView {
 		
 		@Override
 		protected Integer doInBackground(Integer... params) {
-			// TODO Auto-generated method stub
 			if(imgPath != null && imgPath.length() > 4){
 				//ALog.alog(TAG, "doInBackground");
 				if(imgPath.startsWith("/")){
@@ -128,7 +134,6 @@ public class XImageViewAsync extends ImageView {
 					
 					@Override
 					public void run() {
-						// TODO Auto-generated method stub
 						updateImage();
 					}
 				});

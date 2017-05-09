@@ -38,14 +38,14 @@ public class BitmapUtils {
 	/**
 	 * read a bitmap from the given url, and if save is true, it will save it to localpath with fileName
 	 * @param url remote file path;
-	 * @param localPath locale path to save file /mnt/sdcard/
+	 * @param localFolder locale path to save file /mnt/sdcard/
 	 * @param fileName file name you want to save abc.jpg
 	 * @param save save or not? if true it will save to local path, of false, nothing to do in local
 	 * @return return a bitmap to show in window
 	 */
-	public static Bitmap getBitmapFromUrl(String url, String localPath, String fileName, boolean save){
+	public static Bitmap getBitmapFromUrl(String url, String localFolder, String fileName, HttpUtilsAndroid.HttpProgressListener progressListener, boolean save){
 		ALog.alog("BitmapUtils", "url = " + url);
-		ALog.alog("BitmapUtils", "localPath = " + localPath);
+		ALog.alog("BitmapUtils", "localFolder = " + localFolder);
 		ALog.alog("BitmapUtils", "fileName = " + fileName);
 		byte[] data;
 		Bitmap bitmap = null;
@@ -56,18 +56,23 @@ public class BitmapUtils {
 			}
 			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
 			HttpGet req = HttpUtilsAndroid.getGetRequest(url);
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), null);
+			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), progressListener);
 			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+            ALog.alog("BitmapUtils", "download " + fileName + " completed!");
 			if(save){
-				ALog.alog("BitmapUtils", "getBitmapFromUrl save to local");
-				File f = new File(localPath);
+				ALog.alog("BitmapUtils", "getBitmapFromUrl save to file!");
+				File f = new File(localFolder);
 				if(!f.exists()) {
                     boolean mkdirs = f.mkdirs();
+                    if(!mkdirs){
+                        ALog.w(TAG, "create folder error " + f.getAbsolutePath());
+                    }
                 }
 				fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
 				fos.write(data);
 				fos.flush();
 			}
+
 		} catch (Exception e) {
 			e.printStackTrace();
 			bitmap = null;
@@ -109,6 +114,7 @@ public class BitmapUtils {
 				File f = new File(localPath);
 				if(!f.exists()) {
                     boolean b = f.mkdirs();
+                    if(!b)ALog.w(TAG, "crate folder error : " + f.getAbsolutePath());
                 }
 				fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
 				fos.write(data);
@@ -140,7 +146,7 @@ public class BitmapUtils {
 	 * @return return a bitmap to show in window
 	 */
 	public static Bitmap getBitmapFromUrlWidthHeader(String url, String localPath, String fileName,
-			boolean save, String headerName, String headerValue, HttpUtilsAndroid.ProgressCallback cb){
+			boolean save, String headerName, String headerValue, HttpUtilsAndroid.HttpProgressListener cb){
 		String log = "url = " + url;
 		log += "\nlocalPath = " + localPath;
 		log += "\nfileName = " + fileName;
@@ -168,6 +174,7 @@ public class BitmapUtils {
 				File f = new File(localPath);
 				if(!f.exists()) {
                     boolean b = f.mkdirs();
+                    if(!b)ALog.w(TAG, "crate folder error : " + f.getAbsolutePath());
                 }
 				fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
 				fos.write(data);
@@ -188,7 +195,6 @@ public class BitmapUtils {
 				try {
 					fos.close();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -205,10 +211,10 @@ public class BitmapUtils {
 	 * @return return a bitmap to show in window
 	 */
 	public static Bitmap getBitmapFromUrl(String url, String localPath, String fileName, boolean save, Handler h, int msgSucc, int msgFail){
-		ALog.alog("BitmapUtils", "url = " + url);
-		ALog.alog("BitmapUtils", "localPath = " + localPath);
-		ALog.alog("BitmapUtils", "fileName = " + fileName);
-		byte[] data = null;
+		ALog.alog("getBitmapFromUrl", "url = " + url);
+		ALog.alog("getBitmapFromUrl", "localPath = " + localPath);
+		ALog.alog("getBitmapFromUrl", "fileName = " + fileName);
+		byte[] data;
 		Bitmap bitmap = null;
 		FileOutputStream fos = null;
 		try {
@@ -217,21 +223,24 @@ public class BitmapUtils {
 			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
 			if(save){
 				File f = new File(localPath);
-				if(!f.exists())
-					f.mkdirs();
+				if(!f.exists()) {
+                    boolean b = f.mkdirs();
+                    if(!b)ALog.w(TAG, "crate folder error : " + f.getAbsolutePath());
+                }
 				fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
 				fos.write(data);
 				fos.flush();
 			}
+            if(h != null)h.sendEmptyMessage(msgSucc);
 		} catch (Exception e) {
 			e.printStackTrace();
 			bitmap = null;
+            if(h != null)h.sendEmptyMessage(msgFail);
 		} finally{
 			if(fos != null){
 				try {
 					fos.close();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -242,16 +251,15 @@ public class BitmapUtils {
 	/**
 	 * this method should make load image safely;
 	 * just like OOM, or NP;
-	 * @param path
-	 * @return
+	 * @param path full path of file
+	 * @return Bitmap
 	 */
 	public static Bitmap decodeBitmapWithExceptionCatch(String path){
 		Bitmap bm = null;
 		int realSize[] = decodeBitmapBoundsOnly(path);
 		if(realSize == null)return null;
-		boolean isNullPointer = false;
 		boolean needScale = false;
-		while(bm == null && !isNullPointer){
+		while(bm == null){
 			try{
 				if(needScale){
 					realSize[0] *= 0.8;
@@ -265,12 +273,11 @@ public class BitmapUtils {
 				}
 				
 			}catch(OutOfMemoryError oom){
-				ALog.alog("Tool", "OutOfMomery Exception : file is too large, should scale");
+				ALog.alog("Tool", "OutOfMemory Exception : file is too large, should scale");
 				bm = null;
 				needScale = true;
 			}catch(NullPointerException np){
 				bm = null;
-				isNullPointer = true;
 				break;
 			}
 		}
@@ -280,9 +287,9 @@ public class BitmapUtils {
 	
 	/**
 	 * decode bitmap safe. with the first SampleSize, if exception, SampleSize ++
-	 * @param path
-	 * @param SampleSize
-	 * @return
+	 * @param path fill full path
+	 * @param SampleSize sample
+	 * @return Bitmap of bitmap
 	 */
 	public static Bitmap decodeBitmapFileSafe(String path, int SampleSize){
 		Bitmap bm = null;
@@ -296,39 +303,49 @@ public class BitmapUtils {
 		}
 		return bm;
 	}
+
+	public static Bitmap decodeBitmapSafe(String path, int tarWidth, int tarHeight){
+        int size[] = decodeBitmapBoundsOnly(path);
+        if(size == null) return null;
+        int sampleSizeW = tarWidth <= 0 ? Integer.MAX_VALUE : size[0]/tarWidth;
+        int sampleSizeH = tarHeight <= 0 ? Integer.MAX_VALUE : size[1]/tarHeight;
+		if(tarWidth <= 0 && tarHeight <= 0){
+			sampleSizeH = 1;
+		}
+		//ALog.d(TAG, "decodeBitmapSafe sampleSizeW(" + sampleSizeW + "),sampleSizeH(" + sampleSizeH + "), tarWidth(" + tarWidth + "),tarHeight(" + tarHeight + ")");
+        return decodeBitmapFileSafe(path, Math.min(sampleSizeW, sampleSizeH));
+    }
 	
 	/**
 	 * this method will return a scaled image, and will keep the width and height rate.
 	 * @param path:String; abs path of the file.
 	 * @param w:int;  width you want
 	 * @param h:int; height you want
-	 * @return
+	 * @return scaled bitmap
 	 */
 	public static Bitmap decodeScaledBitmapKeepWHRateBySpecWH(String path, int w, int h){
-		Bitmap temp = null;
 		int size[] = decodeBitmapBoundsOnly(path);
 		if(size == null) return null;
 		float r1 = size[0]/(float)size[1];
-		float r2 = w/(float)h;
-		float rate = r1 > r2 ? w/(float)size[0] : h/(float)size[1];
+        float r2, rate;
+        if(w <= 0 || h <= 0){
+            rate = r1;
+        }else {
+            r2 = w / (float) h;
+            rate = r1 > r2 ? w/(float)size[0] : h/(float)size[1];
+        }
 		BitmapFactory.Options opts = new BitmapFactory.Options();
-		opts.inSampleSize = (int)(1/rate);
-		temp = BitmapFactory.decodeFile(path, opts);
-		//if(size[0] > w || size[1] > h){
-			Bitmap bm = temp.createScaledBitmap(temp, (int)(size[0] * rate), (int)(size[1] * rate), false);
-			temp.recycle();
-			return bm;
-		//}else{
-		//	return temp;
-		//}
+		Bitmap temp = BitmapFactory.decodeFile(path, opts);
+        Bitmap bm = Bitmap.createScaledBitmap(temp, (int)(size[0] * rate), (int)(size[1] * rate), false);
+        temp.recycle();
+        return bm;
 	}
-	
+
 	/**
 	 * this method will return a scaled image, and will keep the width and height rate.
-	 * @param path:String; abs path of the file.
 	 * @param w:int;  width you want
 	 * @param h:int; height you want
-	 * @return
+	 * @return Bitmap
 	 */
 	public static Bitmap decodeScaledBitmapKeepWHRateBySpecWH(Bitmap bm, int w, int h){
 		Bitmap temp = null;
@@ -342,7 +359,7 @@ public class BitmapUtils {
 		ALog.alog("BitmapUtils", "decodeScaledBitmapKeepWHRateBySpecWH , rate = " + rate);
 		temp = bm;
 		//if(size[0] > w || size[1] > h){
-			Bitmap bm2 = temp.createScaledBitmap(temp, (int)(size[0] * rate), (int)(size[1] * rate), false);
+			Bitmap bm2 = Bitmap.createScaledBitmap(temp, (int)(size[0] * rate), (int)(size[1] * rate), false);
 			temp.recycle();
 			return bm2;
 		//}else{
@@ -352,12 +369,11 @@ public class BitmapUtils {
 	
 	/**
 	 * mode: 0=normal, 1=autoscale, 2=fitscreen
-	 * @param mode
-	 * @param bmWidth
-	 * @param bmHeight
-	 * @param viewWidth
-	 * @param viewHeight
-	 * @return
+	 * @param bmWidth bitmap width
+	 * @param bmHeight bitmap height
+	 * @param viewWidth view width
+	 * @param viewHeight view height
+	 * @return mode values
 	 */
 	public static float[] getScaleByMode(int bmWidth, int bmHeight, int viewWidth, int viewHeight){
 		float[] scale = {1, 1, 1};
@@ -578,4 +594,8 @@ public class BitmapUtils {
 			e.printStackTrace();
 		}
 	}
+
+    public static boolean isBitmapAvailable(Bitmap bm){
+        return bm != null && !bm.isRecycled();
+    }
 }

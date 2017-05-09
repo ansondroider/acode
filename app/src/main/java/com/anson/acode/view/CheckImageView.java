@@ -1,8 +1,12 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
 import android.widget.ImageView;
+
+import com.anson.acode.R;
 
 public class CheckImageView extends ImageView {
 	int state = 0;// normal 0, selected 1, checked 2;
@@ -12,18 +16,21 @@ public class CheckImageView extends ImageView {
 	int idx = 0;
 	public CheckImageView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 	}
 	public CheckImageView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		// TODO Auto-generated constructor stub
 	}
 	public CheckImageView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 	}
-	
-	public void switchStateTo(int stat){
+
+    @Override
+    public boolean performClick() {
+        switchStateTo(state == STATE_NORMAL ? STATE_CHECKED : STATE_NORMAL);
+        return super.performClick();
+    }
+
+    public void switchStateTo(int stat){
 		this.state = stat;
 		updateImage(stat);
 	}
@@ -40,4 +47,5 @@ public class CheckImageView extends ImageView {
 	public int getIndex(){
 		return this.idx;
 	}
+
 }

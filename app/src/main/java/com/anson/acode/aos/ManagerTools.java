@@ -7,9 +7,13 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
+import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.SystemClock;
+import android.view.View;
+import android.view.Window;
 
 public class ManagerTools {
 	public static String TAG = "ManagerTools";
@@ -128,7 +132,32 @@ public class ManagerTools {
 			return null;
 		}
 	}
-	
 
-	
+    public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 0x00001000;
+    public static void setNavVisibility(boolean visible, Window w) {
+        if( Build.VERSION.SDK_INT < 19 /*Build.VERSION_CODES.KITKAT*/) {
+            return;
+        }
+        int newVis = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+        if (!visible) {
+            newVis =View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                    | SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        }
+        w.getDecorView().setSystemUiVisibility(newVis);
+    }
+
+	public static String getWifiIp(Context ctx){
+        String result = "0.0.0.0";
+        int ip  = ((WifiManager)ctx.getSystemService(Context.WIFI_SERVICE)).getConnectionInfo().getIpAddress();
+        if(ip > 0){
+            result = ((ip) & 0xff) + "." + ((ip >> 8) & 0xff) + "." + ((ip >> 16) & 0xff) + "." + ((ip >> 24) & 0xff);
+        }
+        return result;
+    }
 }

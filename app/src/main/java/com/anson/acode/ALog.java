@@ -5,12 +5,15 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.util.ArrayList;
 
 import android.util.Log;
 import android.view.MotionEvent;
 
 public class ALog {
+
+    /*** LOG.D ***********************************************/
 	public static void d(String... strings){
 		alog(strings);
 	}
@@ -18,19 +21,42 @@ public class ALog {
 		if(null != strings){
 			int len = strings.length;
 			if( len == 1){
-				Log.d("ALog", "\nALog >" + strings[0]);
+				Log.d("ALog", "ALog >" + strings[0]);
 			}
 			
 			if(2 == len){
-				Log.d(strings[0], "\nALog > " + strings[1]);
+				Log.d(strings[0], "ALog > " + strings[1]);
 			}
 			
 			if(3 == len){
-				Log.d(strings[0], "\n" + strings[1] + strings[2]);
+				Log.d(strings[0], strings[1] + strings[2]);
 			}
 		}
 	}
-	public static void e(String... strings){
+
+    /*** LOG.W ***********************************************/
+    public static void w(String... strings){
+        alogW(strings);
+    }
+    public static void alogW(String... strings){
+        if(null != strings){
+            int len = strings.length;
+            if( len == 1){
+                Log.w("ALog", "ALog >" + strings[0]);
+            }
+
+            if(2 == len){
+                Log.w(strings[0], "ALog > " + strings[1]);
+            }
+
+            if(3 == len){
+                Log.w(strings[0], strings[1] + strings[2]);
+            }
+        }
+    }
+
+    /*** LOG.E ***********************************************/
+    public static void e(String... strings){
 		alogE(strings);
 	}
 	public static void alogE(String... strings){
@@ -49,8 +75,9 @@ public class ALog {
 			}
 		}
 	}
-	
-	public static void logBytes(byte[] bytes){
+
+    /*** LOG BYTE[] ***********************************************/
+    public static void logBytes(byte[] bytes){
 		if(bytes != null){
 			StringBuilder sb = new StringBuilder();
             sb.append("\n>>>>>>>>>>>>>>>>>>bytes:" + bytes.length + "<<<<<<<<<<<<<<<<<\n");
@@ -76,7 +103,9 @@ public class ALog {
 			}
 		}
 	}
-	public static void logArray(String TAG, String[] arr){
+
+    /*** LOG.String[]  ***********************************************/
+    public static void logArray(String TAG, String[] arr){
 		if(TAG == null) TAG = "ALog";
 		if(arr == null || arr.length < 1)
 			alog(TAG, "array is NULL or EMPTY");
@@ -102,7 +131,7 @@ public class ALog {
 			alog(TAG, TAG2, "[" + i + "]" + arr[i]);
 		}
 	}
-	
+
 	public static void logListArray(ArrayList<String> arr){
 		if(arr != null){
 			int i = 0;
@@ -112,8 +141,19 @@ public class ALog {
 			}
 		}
 	}
-	
-	public static void writeToFile(File f, byte[] bytes){
+
+    /** LOG ISNULL *********************************************/
+    public static void isNull(Object ... objs){
+        StringBuilder sb = new StringBuilder("isNull(");
+        for(Object o: objs){
+            sb.append(o == null ? "true" : false).append(",");
+        }
+        sb.append(")");
+        d(sb.toString());
+    }
+
+
+    public static void writeToFile(File f, byte[] bytes){
 		if(f.exists()){
 			f.mkdirs();
 		}
@@ -124,18 +164,16 @@ public class ALog {
 			fos.flush();
 			fos.close();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 	
 	/**
 	 * write log to file(ABSPath), and append to file tile
-	 * @param fileName
-	 * @param s
+	 * @param fileName file full path
+	 * @param s String of log
 	 */
 	public static void writeToFileAppend(String fileName, String s){
 		FileWriter writer;
@@ -148,15 +186,14 @@ public class ALog {
 			writer.write(s);
 	        writer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 	
 	/**
 	 * write log (yyyy-MM-dd hh:mm:ss--> s \n)to file(ABSPath), and append to file tile
-	 * @param fileName
-	 * @param s
+	 * @param filePath file full path
+	 * @param s String of log
 	 */
 	public static void writeToFileWithTimeAppend(String filePath, String s){
 		FileWriter writer;
@@ -171,11 +208,15 @@ public class ALog {
 			writer.write(content);
 	        writer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
-	
+
+    /**
+     * return event action String
+     * @param ev motion event
+     * @return String
+     */
 	public static String getEventAction(MotionEvent ev){
 		if(ev.getAction() == MotionEvent.ACTION_DOWN){
 			return "ACTION_DOWN";
@@ -183,8 +224,10 @@ public class ALog {
 			return "ACTION_MOVE";
 		}else if(ev.getAction() == MotionEvent.ACTION_UP){
 			return "ACTION_UP";
-		}else{
-			return "ACTION_UNKNOW";
+		}else if(ev.getAction() == MotionEvent.ACTION_CANCEL){
+            return "ACTION_CANCEL";
+        }else{
+			return "ACTION_UNKNOWN";
 		}
 	}
 }

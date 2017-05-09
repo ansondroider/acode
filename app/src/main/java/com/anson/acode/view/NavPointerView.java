@@ -1,4 +1,4 @@
-package com.anson.acode;
+package com.anson.acode.view;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -8,6 +8,8 @@ import android.graphics.Point;
 import android.graphics.Paint.Style;
 import android.util.AttributeSet;
 import android.view.View;
+
+import com.anson.acode.StringUtils;
 
 public class NavPointerView extends View implements NavigateView.ScreenSwitchListener {
 	public final float MAXALPHA = 240f;
@@ -23,7 +25,6 @@ public class NavPointerView extends View implements NavigateView.ScreenSwitchLis
 	
 	public NavPointerView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
 		paint = new Paint();
 		paint.setAntiAlias(true);
 		paint.setTextSize(TEXTSIZE);
@@ -56,7 +57,6 @@ public class NavPointerView extends View implements NavigateView.ScreenSwitchLis
 	}
 	public NavPointerView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
-		// TODO Auto-generated constructor stub
 		paint = new Paint();
 		paint.setAntiAlias(true);
 		float scale = context.getResources().getDisplayMetrics().density;
@@ -140,6 +140,7 @@ public class NavPointerView extends View implements NavigateView.ScreenSwitchLis
 				alpha = 0;
 			}
 		}
+
 		boolean isInArea(int offset){
 			int os = offset + (idx * width);
 			if(0 <= os && os < width){
@@ -161,14 +162,13 @@ public class NavPointerView extends View implements NavigateView.ScreenSwitchLis
 	 * this method will called after you NavigateView.addSiwtchListener;
 	 */
 	public void onScroll(int offset){
-		for(int i=0; i<pointers.length; i++){
-			pointers[i].updateAlpha(offset);
+		//for(int i=0; i<pointers.length; i++){
+        for(Pointer p : pointers){
+            p.updateAlpha(offset);
 			parentOffset = offset;
 		}
 	}
 	@Override
 	public void switchToScreen(int screen) {
-		// TODO Auto-generated method stub
-		
 	}
 }
