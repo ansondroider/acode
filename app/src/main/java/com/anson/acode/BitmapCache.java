@@ -102,6 +102,28 @@ public class BitmapCache {
                                           final int reflectGap,
                                           final int height,
                                           final Handler h){
+        getBimapAndLoadIfNotExist(key, localFolder, isVideo, deleteOld, reflectGap, height, h, true);
+    }
+
+    /**
+     * load bitmap, and enqueue a task when bitmap could NOT found
+     * @param key key genterated by generateKey.
+     * @param localFolder where you want to save file download from remote.
+     * @param isVideo is a video file
+     * @param deleteOld delete old thumbnail file.
+     * @param reflectGap should be > 0 when you want to create a reflect bitmap.
+     * @param height height you want.
+     * @param h handler for send message to caller.
+     * @param priority load quick
+     */
+    public void getBimapAndLoadIfNotExist(final String key,
+                                          final String localFolder,//for network download.
+                                          final boolean isVideo,
+                                          final boolean deleteOld,
+                                          final int reflectGap,
+                                          final int height,
+                                          final Handler h,
+                                          final boolean priority){
         Bitmap bm = getBitmap(key);
         if(bm != null){
             Message msg = new Message();
@@ -113,7 +135,7 @@ public class BitmapCache {
         new Thread(){
             @Override
             public void run() {
-                loadThread.addTask(key, localFolder, isVideo, deleteOld, height, reflectGap, h, MSG_LOAD_BITMAP_SUCCESS, MSG_LOAD_BITMAP_FAILED);
+                loadThread.addTask(key, localFolder, isVideo, deleteOld, height, reflectGap, h, MSG_LOAD_BITMAP_SUCCESS, MSG_LOAD_BITMAP_FAILED, priority);
             }
         }.start();
 
@@ -141,7 +163,7 @@ public class BitmapCache {
         loadThread.release();
     }
 
-    private int cacheCount = 10;
+    private int cacheCount = 16;
     private int cacheIdx = 0;
     private Bitmap[] bmReference = new Bitmap[cacheCount];
     /** private methods **/
@@ -157,6 +179,9 @@ public class BitmapCache {
 
 
     private void recycleBitmap(String key){
+        for(int i = 0; i < cacheCount; i ++){
+            bmReference[i] = null;
+        }
         Bitmap bm  = getBitmap(key);
         if(bm != null){
             bm.recycle();
@@ -170,7 +195,7 @@ public class BitmapCache {
         void addTask(String key,
                      String localFolder,
                      boolean isVideo, boolean deleteOld,
-                     int height, int reflectGap, Handler h, int msgS, int msgF){
+                     int height, int reflectGap, Handler h, int msgS, int msgF, boolean priority){
             if(execingKey.equals(key)){
                 ALog.w(TAG, "addTask(" + key + ") failed, because task is running!!!");
                 return;
@@ -184,10 +209,14 @@ public class BitmapCache {
                         break;
                     }
                 }
+
+                //task already exists, if priority, move task to end.
                 if(et != null){
                     //move to end.
-                    tasks.remove(et);
-                    tasks.add(et);
+                    if(priority) {
+                        tasks.remove(et);
+                        tasks.add(0, et);
+                    }
                 }else {
                     Task t = new Task();
                     t.key = key;
@@ -216,7 +245,7 @@ public class BitmapCache {
                             lock.wait();
                         }else{
                             //find a task, dequeue from tasks
-                            t = tasks.remove(tasks.size() - 1);//get last one....
+                            t = tasks.remove(0);//tasks.size() - 1);//get last one....
                         }
                     } catch (InterruptedException e) {
                         e.printStackTrace();

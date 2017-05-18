@@ -181,6 +181,11 @@ public class FileUtils {
             this.isInternalSD = isInternalSD;
         }
 
+        public boolean isVolumeAvailable(){
+            File f = new File(path);
+            return f.exists() && f.canWrite() && f.getTotalSpace() > 0 && f.getFreeSpace() > 0;
+        }
+
         @Override
         public String toString() {
             return "VolumeInfo[path(" + path + "), isInternalSD(" + isInternalSD + ")]";
@@ -609,8 +614,8 @@ public class FileUtils {
 
     /**
      * write String s to File f
-     * @param f
-     * @param s
+     * @param f target file
+     * @param content byte content
      */
     public static void writeToFile(File f, byte[] content){
         File parent = f.getParentFile();
