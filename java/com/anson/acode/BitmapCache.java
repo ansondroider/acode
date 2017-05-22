@@ -129,7 +129,7 @@ public class BitmapCache {
             Message msg = new Message();
             msg.what = MSG_LOAD_BITMAP_SUCCESS;
             msg.obj = key;
-            h.sendMessage(msg);
+            if(h != null)h.sendMessage(msg);
             return;
         }
         new Thread(){

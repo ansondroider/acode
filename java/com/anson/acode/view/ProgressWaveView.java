@@ -189,7 +189,7 @@ public class ProgressWaveView extends View {
         wavePath.lineTo(width, height);
         wavePath.lineTo(-width, height);
         rh.removeMessages(REFRESH);
-        rh.sendEmptyMessageDelayed(REFRESH, 50);
+        rh.sendEmptyMessageDelayed(REFRESH, 30);
         invalidate();
     }
 }

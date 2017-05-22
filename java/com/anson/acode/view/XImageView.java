@@ -507,20 +507,23 @@ public class XImageView extends ImageView{
 					matrix.set(savedMatrix);
 					int[] dis = calcAvaSpace(xiv, matrix, event.getX() - start.x, event.getY()- start.y);
 					if(Math.abs(dis[0]) < 1 && Math.abs(dis[1]) < 1 && Math.abs(event.getX() - start.x) > 5){
-						xiv.getParent().requestDisallowInterceptTouchEvent(false);
-					}else{
-						matrix.postTranslate(dis[0], dis[1]);
+                        xiv.getParent().requestDisallowInterceptTouchEvent(false);
+                    }else{
+                        ALog.d(TAG, "drag(" + dis[0] + ", " + dis[1] + "), vx(" + vx + "), vy(" + vy + ")");
+                        matrix.postTranslate(dis[0], dis[1]);
                         if(osView != null) {
                             osView.clear();
+                            //horizontal
                             if (Math.abs(vx) > Math.abs(vy)) {
-                                if (Math.abs(dis[0]) != Math.abs(vx)) {
+                                if (Math.abs(dis[0]) != Math.abs((int)vx)) {
                                     if (vx < 0)
                                         osView.setOverScroll(OverscrollView.over_left, (int) Math.abs(vx));
                                     if (vx > 0)
                                         osView.setOverScroll(OverscrollView.over_right, (int) Math.abs(vx));
                                 }
                             } else {
-                                if (Math.abs(dis[1]) != Math.abs(vy)) {
+                                //vertical
+                                if (Math.abs(dis[1]) != Math.abs((int)vy)) {
                                     if (vy < 0)
                                         osView.setOverScroll(OverscrollView.over_top, (int) Math.abs(vy));
                                     if (vy > 0)
