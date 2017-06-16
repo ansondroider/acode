@@ -30,6 +30,7 @@ import java.util.List;
 public class BitmapCache {
     private final static String TAG = "BitmapCache";
     private boolean D = false;
+    private boolean paused = false;
     public static final int MSG_LOAD_BITMAP_SUCCESS = 0xff0;
     public static final int MSG_LOAD_BITMAP_FAILED = 0xff1;
     private Hashtable<String, WeakReference<Bitmap>> bitmaps = new Hashtable<String, WeakReference<Bitmap>>();
@@ -163,6 +164,23 @@ public class BitmapCache {
         loadThread.release();
     }
 
+    /**
+     * pause load bitmap, make UI smooth
+     */
+    public void pause(){
+        paused = true;
+    }
+
+    /**
+     * resume load bitmap
+     */
+    public void resume(){
+        paused = false;
+        synchronized (loadThread.lock) {
+            loadThread.lock.notify();
+        }
+    }
+
     private int cacheCount = 16;
     private int cacheIdx = 0;
     private Bitmap[] bmReference = new Bitmap[cacheCount];
@@ -240,7 +258,7 @@ public class BitmapCache {
                 synchronized (lock){
                     try {
                         //scan tasks, if no task, wait.
-                        if(tasks.size() <= 0){
+                        if(tasks.size() <= 0 || paused){
                             ALog.d(TAG, "__IDLE__");
                             lock.wait();
                         }else{

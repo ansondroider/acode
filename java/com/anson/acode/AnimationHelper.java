@@ -1,5 +1,6 @@
 package com.anson.acode;
 
+
 public class AnimationHelper {
     public static final String scaleX = "scaleX";
     public static final String scaleY = "scaleY";
@@ -20,4 +21,5 @@ public class AnimationHelper {
                 :
                 (float)Math.sqrt(Math.pow(total, 2) - Math.pow((total - passed), 2))/total;
     }
+
 }

@@ -74,8 +74,8 @@ public class AImageSwitcher extends RelativeLayout {
                 center + halfLineLen, center - halfLineLen, center - halfLineLen, center + halfLineLen};
         canvas.drawLines(lineX, p);
         bdClose = new BitmapDrawable(getResources(), close);
-        bdClose.setBounds(w - closeSize - halfLineLen, h - closeSize - halfLineLen,
-                w - halfLineLen, h - halfLineLen);
+        bdClose.setBounds(w - closeSize - halfLineLen, h - closeSize * 2,
+                w - halfLineLen, h - closeSize);
     }
 
     public void setAnimDuration(int duration){
