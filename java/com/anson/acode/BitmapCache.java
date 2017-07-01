@@ -206,6 +206,10 @@ public class BitmapCache {
         }
     }
 
+    public void removeTaskByClass(Class cls){
+        loadThread.removeTaskByClass(cls);
+    }
+
     private LoadBitmapThread loadThread = new LoadBitmapThread();
     private class LoadBitmapThread extends Thread{
         volatile List<Task> tasks = new ArrayList<Task>();
@@ -393,6 +397,22 @@ public class BitmapCache {
                 h.sendMessage(h.obtainMessage(t.mf, t.key));
             }
             execingKey = "";
+        }
+
+        void removeTaskByClass(Class clz){
+            String name = clz.getSimpleName() + ";;";
+            synchronized (tasks){
+                List<Task> delTask = new ArrayList<Task>();
+                for(Task t : tasks){
+                    if(t.key.startsWith(name)){
+                        delTask.add(t);
+                    }
+                }
+                if(delTask.size() > 0) {
+                    //ALog.d(TAG, "removeTaskByClass:" + name + " size " + delTask.size());
+                    tasks.removeAll(delTask);
+                }
+            }
         }
     }
 

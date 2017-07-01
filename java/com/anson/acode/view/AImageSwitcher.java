@@ -139,6 +139,25 @@ public class AImageSwitcher extends RelativeLayout {
         this.adapter = adapter;
     }
 
+    int autoPlayInterval = 0;
+    public void setAutoPlayInterval(int interval){
+        autoPlayInterval = interval;
+    }
+
+    Runnable showNextImage = new Runnable() {
+        @Override
+        public void run() {
+            if(curIdx < adapter.getCount() - 1){
+                showImage(curIdx + 1);
+            }
+        }
+    };
+
+    private void postShowNextImage(){
+        removeCallbacks(showNextImage);
+        postDelayed(showNextImage, autoPlayInterval);
+    }
+
     private void loadBitmapForView(){
             new AsyncTask<Integer, Integer, Integer>(){
                 @Override
@@ -174,6 +193,11 @@ public class AImageSwitcher extends RelativeLayout {
                 ivCur.setImageBitmap(bitmaps.get(key));
             }
             showBitmapWithAnimation();
+
+            //bitmap load finish and then check if show next image auto
+            if(getVisibility() == View.VISIBLE && autoPlayInterval > 0 && curIdx < adapter.getCount() - 1) {
+                postShowNextImage();
+            }
         }
     };
 
@@ -328,6 +352,7 @@ public class AImageSwitcher extends RelativeLayout {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if(event.getAction() == MotionEvent.ACTION_DOWN){
+            removeCallbacks(showNextImage);
             downX = (int)event.getX();
             downY = (int)event.getY();
             if(bdClose != null && bdClose.getBounds().contains(downX, downY)){

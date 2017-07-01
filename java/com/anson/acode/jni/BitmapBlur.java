@@ -15,10 +15,10 @@ public class BitmapBlur {
 	
 	/**
 	 * blur src bitmap
-	 * @param src
-	 * @param cxt
+	 * @param src src bitmap
+	 * @param cxt context
 	 * @param radius 0 <= radius <= 25
-	 * @return
+	 * @return new bitmap
 	 */
 	public static Bitmap getBlurBitmap(Bitmap src, Context cxt, int radius){
 		return getBlurBitmap(src, cxt, radius, false);
@@ -26,9 +26,9 @@ public class BitmapBlur {
 	
 	/**
 	 * blur src bitmap by JNI
-	 * @param src
-	 * @param radius
-	 * @return
+	 * @param src bitmap
+	 * @param radius radius of blur
+	 * @return new bitmap
 	 */
 	public static Bitmap getBlurBitmapJNI(Bitmap src, int radius){
 		return getBlurBitmap(src, null, radius, true);
@@ -36,10 +36,10 @@ public class BitmapBlur {
 	
 	/**
 	 * blur src, if SDK > 16, use SDK, else use JNI;
-	 * @param src
-	 * @param cxt
+	 * @param src bitmap
+	 * @param cxt context
 	 * @param radius radius 0 <= radius <= 25
-	 * @param forceJNI
+	 * @param forceJNI do by jni
 	 * @return
 	 */
 	public static Bitmap getBlurBitmap(Bitmap src, Context cxt, int radius, boolean forceJNI){
