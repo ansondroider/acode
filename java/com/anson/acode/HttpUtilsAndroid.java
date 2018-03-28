@@ -12,6 +12,7 @@ import com.anson.acode.multipart.Part;
 import com.anson.acode.multipart.ProgressMultipartEntity;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
@@ -30,6 +31,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Iterator;
+import java.util.Map;
 
 public class HttpUtilsAndroid {
 	public static final String TAG = "HttpUtilsAndroid";
@@ -250,12 +255,20 @@ public class HttpUtilsAndroid {
 		}
 		
 	}
-	public static void downloadFileFromUrl(String url, String localFolder, String fileName){
+	public static void downloadFileFromUrl(String url, String localFolder, String fileName, String[] headers){
 		byte[] data;
 		FileOutputStream fos = null;
 		try {
 			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(HttpUtilsAndroid.getGetRequest(url)), null);
+            HttpGet req = HttpUtilsAndroid.getGetRequest(url);
+            if(headers != null && headers.length > 0){
+
+                for(String s : headers){
+                    String h[] = s.split(";;");
+                    req.addHeader(h[0], h[1]);
+                }
+            }
+			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), null);
 			File f = new File(localFolder);
 			if(!f.exists()) {
                 boolean b = f.mkdirs();
@@ -514,4 +527,26 @@ public class HttpUtilsAndroid {
 		void onProgress(long progress, long size);
         void onFinish();
 	}
+
+	public static byte[] isUrlExists(String url, String[] params, int requestLen){
+        try {
+            URLConnection urlConn = new URL(url).openConnection();
+            if(params != null && params.length > 0){
+                for(String s : params){
+                    String ss[] = s.split(";;");
+                    urlConn.setRequestProperty(ss[0], ss[1]);
+                }
+            }
+            long len =  urlConn.getInputStream().available();
+            byte[] read = new byte[Math.min(requestLen, (int)len)];
+            urlConn.getInputStream().read(read);
+            urlConn.getInputStream().close();
+            return read;
+
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+
+        return null;
+    }
 }

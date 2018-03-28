@@ -1,19 +1,15 @@
 package com.anson.acode;
 
+import android.graphics.Color;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.text.Collator;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-
-import android.graphics.Color;
-import android.os.Build;
-import android.view.View;
-import android.view.Window;
 
 public class AUtils {
 	

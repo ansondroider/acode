@@ -103,7 +103,7 @@ public class BitmapCache {
                                           final int reflectGap,
                                           final int height,
                                           final Handler h){
-        getBimapAndLoadIfNotExist(key, localFolder, isVideo, deleteOld, reflectGap, height, h, true);
+        getBimapAndLoadIfNotExist(key, localFolder, isVideo, deleteOld, reflectGap, height, h, true, null);
     }
 
     /**
@@ -124,7 +124,8 @@ public class BitmapCache {
                                           final int reflectGap,
                                           final int height,
                                           final Handler h,
-                                          final boolean priority){
+                                          final boolean priority,
+                                          final String[] reqHeaders){
         Bitmap bm = getBitmap(key);
         if(bm != null){
             Message msg = new Message();
@@ -136,7 +137,7 @@ public class BitmapCache {
         new Thread(){
             @Override
             public void run() {
-                loadThread.addTask(key, localFolder, isVideo, deleteOld, height, reflectGap, h, MSG_LOAD_BITMAP_SUCCESS, MSG_LOAD_BITMAP_FAILED, priority);
+                loadThread.addTask(key, localFolder, isVideo, deleteOld, height, reflectGap, h, MSG_LOAD_BITMAP_SUCCESS, MSG_LOAD_BITMAP_FAILED, priority, reqHeaders);
             }
         }.start();
 
@@ -217,9 +218,10 @@ public class BitmapCache {
         void addTask(String key,
                      String localFolder,
                      boolean isVideo, boolean deleteOld,
-                     int height, int reflectGap, Handler h, int msgS, int msgF, boolean priority){
+                     int height, int reflectGap, Handler h, int msgS, int msgF, boolean priority,
+                     String[] reqHeaders){
             if(execingKey.equals(key)){
-                ALog.w(TAG, "addTask(" + key + ") failed, because task is running!!!");
+                if(D)ALog.w(TAG, "addTask(" + key + ") failed, because task is running!!!");
                 return;
             }
 
@@ -248,6 +250,7 @@ public class BitmapCache {
                     t.h = new WeakReference<Handler>(h);
                     t.height = height;
                     t.reflecteGap = reflectGap;
+                    t.requestHeaders = reqHeaders;
                     t.ms = msgS;
                     t.mf = msgF;
                     tasks.add(t);
@@ -318,9 +321,12 @@ public class BitmapCache {
                     domain = domain.replaceAll("/", "_");
                 }
                 f = new File(t.folder + "/" + FileUtils.pickFileName(sp[1]));
+                if(f.exists() && f.length() < 1024){
+                    ALog.d(TAG, "delete valid file " + f.delete());
+                }
                 if(!f.exists()){
-                    ALog.d(TAG, "go download file ");
-                    HttpUtilsAndroid.downloadFileFromUrl(sp[1], t.folder, f.getName());
+                    if(D)ALog.d(TAG, "go download file " + (t.requestHeaders != null ? t.requestHeaders[0] : ""));
+                    HttpUtilsAndroid.downloadFileFromUrl(sp[1], t.folder, f.getName(), t.requestHeaders);
                 }
             }else{
                 f = new File(sp[1]);
@@ -425,6 +431,7 @@ public class BitmapCache {
         int ms, mf;
         int height;
         int reflecteGap;
+        String[] requestHeaders;
     }
 
 

@@ -35,11 +35,6 @@ public class AImageView extends ImageView {
         init();
     }
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-    }
-
     Animator animShow, animHide;
     void init(){
         Animator alphaS = ObjectAnimator.ofPropertyValuesHolder(this,

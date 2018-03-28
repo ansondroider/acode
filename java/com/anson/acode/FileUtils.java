@@ -21,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -1144,6 +1145,16 @@ public class FileUtils {
 			fs[i] = new File(ss[i]);
 		}
 	}
+
+	public static void sortFileWithCreateTime(File[] fs){
+        AUtils.shortArray(fs, new Comparator<File>() {
+            @Override
+            public int compare(File l, File r) {
+                int t = (int)(r.lastModified()/1000 - l.lastModified()/1000);
+                return -t;
+            }
+        });
+    }
 	
 	/**
 	 * check the file name include badchar, and replace with good char

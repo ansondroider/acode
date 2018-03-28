@@ -13,6 +13,24 @@ import android.view.MotionEvent;
 
 public class ALog {
 
+    /*** LOG.I ***********************************************/
+    public static void i(String... strings){
+        if(null != strings){
+            int len = strings.length;
+            if( len == 1){
+                Log.i("ALog", "ALog >" + strings[0]);
+            }
+
+            if(2 == len){
+                Log.i(strings[0], "ALog > " + strings[1]);
+            }
+
+            if(3 == len){
+                Log.i(strings[0], strings[1] + strings[2]);
+            }
+        }
+    }
+
     /*** LOG.D ***********************************************/
 	public static void d(String... strings){
 		alog(strings);

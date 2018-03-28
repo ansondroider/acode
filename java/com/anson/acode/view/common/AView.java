@@ -1,15 +1,20 @@
 package com.anson.acode.view.common;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Camera;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.os.Parcelable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.anson.acode.ALog;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * com.ansondroider.magiclauncher.views
@@ -18,6 +23,7 @@ import com.anson.acode.ALog;
 public abstract class AView extends View {
     protected String TAG = "ShapeView";
     protected boolean needTouch = false;
+    protected boolean debugLife = false;
     protected float density = 1;
     protected boolean animSelf = false;
     public AView(Context context) {
@@ -36,6 +42,7 @@ public abstract class AView extends View {
     }
     protected void constructed(){
         TAG = getClass().getSimpleName();
+        if(debugLife)Log.i(TAG, "LIFE: constructed");
     }
 
     protected int W = 0, H = 0, realW = 0, realH = 0, oldW = -1, oldH = -1;
@@ -45,7 +52,8 @@ public abstract class AView extends View {
     protected Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        //super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        if(debugLife)Log.i(TAG, "LIFE: onMeasure");
+                //super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         paddingLeft = getPaddingLeft();
         paddingTop = getPaddingTop();
         paddingRight = getPaddingRight();
@@ -59,7 +67,7 @@ public abstract class AView extends View {
                 (mw == MeasureSpec.AT_MOST ? "MeasureSpec.AT_MOST" : " MeasureSpec.UNSPECIFIED");
         String modeH = mh == MeasureSpec.EXACTLY ? "MeasureSpec.EXACTLY" :
                 (mh == MeasureSpec.AT_MOST ? "MeasureSpec.AT_MOST" : " MeasureSpec.UNSPECIFIED");
-        if(debugMeasure) ALog.d(TAG, "onMeasure(" + modeW + "," + modeH + ", " + w + ", " + h + ")");
+        if(debugMeasure) ALog.d(TAG, "LIFE: onMeasure(" + modeW + "," + modeH + ", " + w + ", " + h + ")");
 
         if(mw == MeasureSpec.EXACTLY || mh == MeasureSpec.EXACTLY){
             W = mw == MeasureSpec.EXACTLY ? w : Math.min(w, h);
@@ -74,19 +82,6 @@ public abstract class AView extends View {
             W = w;
             H = h;
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        }
-
-        if(oldW != W || oldH != H){
-            reset();
-            density = getResources().getDisplayMetrics().density;
-            centerX = W >> 1;
-            centerY = H >> 1;
-            realW = W - paddingLeft - paddingRight;
-            realH = H - paddingTop - paddingBottom;
-            init();
-            oldW = W;
-            oldH = H;
-            inited = true;
         }
     }
 
@@ -225,11 +220,121 @@ public abstract class AView extends View {
         this.animSelf = animSelf;
         invalidate();
     }
+
+    protected float getTextLength(String text, Paint p){
+        if(text != null){
+            float[] ls = new float[text.length()];
+            p.getTextWidths(text, ls);
+            float l = 0;
+            for(float f : ls){
+                l += f;
+            }
+            return l;
+        }
+        return 0;
+    }
     public boolean getAnimSelf(){
         return this.animSelf;
     }
 
     protected boolean outOfClickPosition(float cx, float cy){
         return Math.abs(cx - dx) + Math.abs(cy - dy) > density * 5;
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        if(debugLife)Log.i(TAG, "LIFE: onSizeChanged");
+        super.onSizeChanged(w, h, oldw, oldh);
+        if(oldW != w || oldH != h){
+            reset();
+            density = getResources().getDisplayMetrics().density;
+            centerX = W >> 1;
+            centerY = H >> 1;
+            realW = W - paddingLeft - paddingRight;
+            realH = H - paddingTop - paddingBottom;
+            init();
+            oldW = W;
+            oldH = H;
+            inited = true;
+            onInited();
+        }
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        if(debugLife)Log.i(TAG, "LIFE: onAttachedToWindow");
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if(debugLife)Log.i(TAG, "LIFE: onDetachedFromWindow");
+    }
+
+    @Override
+    protected void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        if(debugLife)Log.i(TAG, "LIFE: onVisibilityChanged " + visibility);
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if(debugLife)Log.i(TAG, "LIFE: onLayout");
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        if(debugLife)Log.i(TAG, "LIFE: onWindowFocusChanged " + hasWindowFocus);
+    }
+
+    @Override
+    protected void onFinishInflate() {
+        super.onFinishInflate();
+        if(debugLife)Log.i(TAG, "LIFE: onFinishInflate");
+    }
+
+    @Override
+    public void onWindowSystemUiVisibilityChanged(int visible) {
+        super.onWindowSystemUiVisibilityChanged(visible);
+        if(debugLife)Log.i(TAG, "LIFE: onWindowSystemUiVisibilityChanged");
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if(debugLife)Log.i(TAG, "LIFE: onConfigurationChanged");
+    }
+
+    @Override
+    protected Parcelable onSaveInstanceState() {
+        if(debugLife)Log.i(TAG, "LIFE: onSaveInstanceState");
+        return super.onSaveInstanceState();
+    }
+
+    ConcurrentLinkedQueue<Runnable> eventQueue = new ConcurrentLinkedQueue<Runnable>();
+
+
+    protected void queue(Runnable event){
+        if(!inited) {
+            eventQueue.add(event);
+        }else{
+            post(event);
+        }
+    }
+
+    void onInited(){
+        if(debugLife)Log.i(TAG, "LIFE: onInited");
+        if(eventQueue.size() > 0){
+            Runnable event = eventQueue.poll();
+            post(event);
+            onInited();
+        }
+    }
+
+    void flushEvents(){
+        eventQueue.clear();
     }
 }
