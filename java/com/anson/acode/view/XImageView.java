@@ -32,8 +32,6 @@ import com.anson.acode.StringUtils;
 import com.anson.acode.download.DownloadThread;
 import com.anson.acode.download.DownloadThreadFactory;
 
-import org.apache.http.client.methods.HttpRequestBase;
-
 /**
  * created by AnsonDroider.
  * to support :
@@ -754,7 +752,7 @@ public class XImageView extends ImageView{
             return false;
         }
         @Override
-        public void onRequestStart(HttpRequestBase req) {}
+        public void onRequestStart() {}
         @Override
         public void onResponse(int code) {}
         @Override

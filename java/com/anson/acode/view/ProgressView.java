@@ -11,7 +11,6 @@ import android.view.View;
 import com.anson.acode.ALog;
 import com.anson.acode.HttpUtilsAndroid;
 
-import org.apache.http.client.methods.HttpRequestBase;
 
 public class ProgressView extends View {
 
@@ -38,7 +37,7 @@ public class ProgressView extends View {
 		pcb = new HttpUtilsAndroid.HttpProgressListener() {
 
             @Override
-            public void onRequestStart(HttpRequestBase req) {}
+            public void onRequestStart() {}
             @Override
             public boolean canceled() {
                 return false;

@@ -6,9 +6,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -54,9 +54,10 @@ public class BitmapUtils {
 			if(url.contains(" ")){
 				url = url.replaceAll(" ", "%20");
 			}
-			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-			HttpGet req = HttpUtilsAndroid.getGetRequest(url);
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), progressListener);
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            urlConn.connect();
+			data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, progressListener);
 			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
             ALog.alog("BitmapUtils", "download " + fileName + " completed!");
 			if(save){
@@ -100,14 +101,15 @@ public class BitmapUtils {
 			if(url.contains(" ")){
 				url = url.replaceAll(" ", "%20");
 			}
-			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-			HttpGet req = HttpUtilsAndroid.getGetRequest(url);
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
 			if(header != null && headerValue != null && header.length == headerValue.length){
-				for(int i=0; i<header.length;i++){
-					req.addHeader(header[i], headerValue[i]);
-				}
-			}
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), null);
+                for(int i=0; i<header.length;i++){
+                    urlConn.setRequestProperty(header[i], headerValue[i]);
+                }
+            }
+            urlConn.connect();
+            data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, null);
 			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
 			if(save){
 				ALog.alog("BitmapUtils", "getBitmapFromUrl save to local");
@@ -156,19 +158,18 @@ public class BitmapUtils {
 		Bitmap bitmap = null;
 		FileOutputStream fos = null;
 		try {
-			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-			HttpGet req = HttpUtilsAndroid.getGetRequest(url);
-			//req.addHeader("Cache-Control","max-age=0");
-			req.setHeader(headerName, headerValue);//Referer: http://www.cococomic.com/
-			req.addHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31");
-			//req.addHeader("If-None-Match", "7149c5199067cf1:0");
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+			urlConn.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31");
+            urlConn.connect();
+            //req.addHeader("If-None-Match", "7149c5199067cf1:0");
 			//req.addHeader("Accept", "*/*");
 			/*req.addHeader("If-Modified-Since", "Sun, 04 May 2014 11:58:02 GMT");
 			req.addHeader("Accept-Encoding", "gzip,deflate,sdch");
 			req.addHeader("Accept-Language", "zh-CN,zh;q=0.8,en;q=0.6");
 			req.addHeader("Accept-Charset", "GBK,utf-8;q=0.7,*;q=0.3");*/
 			//User-Agent: Mozilla/5.0 (Windows NT 6.1) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.77 Safari/535.7
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), cb);
+			data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, cb);
 			//bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
 			if(save){
 				File f = new File(localPath);
@@ -218,8 +219,10 @@ public class BitmapUtils {
 		Bitmap bitmap = null;
 		FileOutputStream fos = null;
 		try {
-			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(HttpUtilsAndroid.getGetRequest(url)), null);
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            urlConn.connect();
+			data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, null);
 			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
 			if(save){
 				File f = new File(localPath);

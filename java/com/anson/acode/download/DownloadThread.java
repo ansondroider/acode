@@ -3,7 +3,6 @@ package com.anson.acode.download;
 import com.anson.acode.ALog;
 import com.anson.acode.HttpUtilsAndroid;
 
-import org.apache.http.client.methods.HttpRequestBase;
 
 /**
  * Created by anson on 16-6-3.
@@ -78,9 +77,9 @@ public abstract class DownloadThread extends Thread implements HttpUtilsAndroid.
     }
 
     @Override
-    public void onRequestStart(HttpRequestBase req) {
+    public void onRequestStart() {
         if(progressListener != null){
-            progressListener.onRequestStart(req);
+            progressListener.onRequestStart();
         }
     }
 

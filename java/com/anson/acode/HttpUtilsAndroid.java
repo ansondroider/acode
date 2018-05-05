@@ -1,8 +1,10 @@
 package com.anson.acode;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 
@@ -11,19 +13,6 @@ import com.anson.acode.multipart.FilePart;
 import com.anson.acode.multipart.Part;
 import com.anson.acode.multipart.ProgressMultipartEntity;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -31,10 +20,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Iterator;
-import java.util.Map;
 
 public class HttpUtilsAndroid {
 	public static final String TAG = "HttpUtilsAndroid";
@@ -45,7 +34,7 @@ public class HttpUtilsAndroid {
 	
 	/**
 	 * getHttpClient with connection timeout 
-	 */
+
 	public static HttpClient getHttpClient(int timeout) {
         HttpParams params = new BasicHttpParams();
         HttpConnectionParams.setConnectionTimeout(params, CONNECTION_TIMEOUT);
@@ -53,15 +42,15 @@ public class HttpUtilsAndroid {
         HttpConnectionParams.setSocketBufferSize(params, 8192);
         //Maybe need ClientConnectionManager
         return new DefaultHttpClient(params);
-    }
+    }*/
 	
 	/** 
 	 * getHttpClient by Default;
-	 */
+
 	public static HttpClient getHttpClient() {
         return getHttpClient(CONNECTION_TIMEOUT);
     }
-	
+	*/
 	
 	/**
 	 * request.setHeader();
@@ -70,7 +59,7 @@ public class HttpUtilsAndroid {
 	 * can add entry to request, but remember to set the ContentType to request.
 	 */
 	
-	/** get Request */
+	/** get Request
 	public static HttpGet getGetRequest(String url){
 		HttpGet request;
 		if(url.contains(protocalSpec)){
@@ -80,9 +69,9 @@ public class HttpUtilsAndroid {
             request = new HttpGet(defaultProtocal + url);
         }
 		return request;
-	}
+	}*/
 	
-	/** post Requst */
+	/** post Requst
 	public static HttpPost getPostRequest(String url){
 		HttpPost request;
 		if(url.contains(protocalSpec)){
@@ -91,9 +80,9 @@ public class HttpUtilsAndroid {
 			request = new HttpPost(defaultProtocal + url);
 		}
 		return request;
-	}
+	}*/
 	
-	/** put Request */
+	/** put Request
 	public static HttpPut getPutRequest(String url){
 		HttpPut request;
 		if(url.contains(protocalSpec)){
@@ -102,7 +91,7 @@ public class HttpUtilsAndroid {
 			request = new HttpPut(defaultProtocal + url);
 		}
 		return request;
-	}
+	}*/
 	
 	/**
 	 * load content from special url, and will send the message to handler;
@@ -134,23 +123,23 @@ public class HttpUtilsAndroid {
 	 */
 	public static String getContentFromURL(final String url, String encode, String[] params, String[] values){
 		String result;
-				HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-				try {
-					HttpGet req = HttpUtilsAndroid.getGetRequest(url);
-					if(params != null && values != null){
-						if(params.length == values.length){
-							HttpParams hp = new BasicHttpParams();
-							for(int i=0; i<params.length; i++){
-								hp.setParameter(params[i], values[i]);
-							}
-							req.setParams(hp);
-						}
-					}
-					byte[] bytes = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), null);
-					result =new String(bytes, encode);
-				} catch (IOException e) {
-					result = e.getMessage();
-				}
+        try {
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            if(params != null && values != null){
+                if(params.length == values.length){
+                    //HttpParams hp = new BasicHttpParams();
+                    for(int i=0; i<params.length; i++){
+                        urlConn.setRequestProperty(params[i], values[i]);
+                    }
+                }
+            }
+            urlConn.connect();
+            byte[] bytes = HttpUtilsAndroid.getResponseEntityBytes(urlConn, null);
+            result =new String(bytes, encode);
+        } catch (IOException e) {
+            result = e.getMessage();
+        }
 		return result;
 	}
 	
@@ -188,12 +177,11 @@ public class HttpUtilsAndroid {
 	 * @param url request url
 	 */
 	public static byte[] getByteContentFromURL(final String url){
-		HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
 		byte[] bytes = null;
 		try {
-			bytes = HttpUtilsAndroid.getResponseEntityBytes(client.execute(HttpUtilsAndroid.getGetRequest(url)), null);
-		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+		    URLConnection urlConn = new URL(url).openConnection();
+		    urlConn.connect();
+			bytes = HttpUtilsAndroid.getResponseEntityBytes(urlConn, null);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -209,33 +197,30 @@ public class HttpUtilsAndroid {
 	 * @param url request url
 	 * @param localFolder local folder
      * @param fileName local file name.
-	 * @param progressLis HttpProgressListener
-	 */
+    */
 	public static void downloadFileFromUrl(String url, String localFolder, String fileName, HttpProgressListener progressLis){
-
-		HttpClient client = getHttpClient();
-    	HttpGet req = getGetRequest(url);
-    	HttpResponse res;
     	boolean hasListener = progressLis != null;
 		try {
-            if(null != progressLis)progressLis.onRequestStart(req);
-            res = client.execute(req);
-	    	int resCode = res.getStatusLine().getStatusCode();
+            if(null != progressLis)progressLis.onRequestStart();
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            urlConn.connect();
+	    	int resCode = ((HttpURLConnection)urlConn).getResponseCode();
 	    	if(200 != resCode){
 	    		ALog.e("ERROR in download file response:" + resCode);
 		    	if(hasListener)progressLis.onResponse(resCode);
 		    	return;
 	    	}
-	    	long length = res.getEntity().getContentLength();
+	    	long length = urlConn.getContentLength();
 	    	long progress = 0;
-	    	InputStream is = res.getEntity().getContent();
+	    	InputStream is = urlConn.getInputStream();
 			File lf = new File(localFolder);
 			if(!lf.exists()) {
                 boolean b = lf.mkdirs();
                 if(!b)ALog.w("create " + lf + " failed!");
             }
             lf = new File(localFolder + "/" + fileName);
-	    	FileOutputStream fos = new FileOutputStream(lf);
+	    	OutputStream fos = getOutputStream(lf);
 	    	int readed;
 	    	byte[] buffer = new byte[CACHE_SIZE];
 	    	while((readed = is.read(buffer)) > 0){
@@ -257,24 +242,25 @@ public class HttpUtilsAndroid {
 	}
 	public static void downloadFileFromUrl(String url, String localFolder, String fileName, String[] headers){
 		byte[] data;
-		FileOutputStream fos = null;
+		OutputStream fos = null;
 		try {
-			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-            HttpGet req = HttpUtilsAndroid.getGetRequest(url);
+			URLConnection urlConn = new URL(url).openConnection();
+			urlConn.setConnectTimeout(60 * 1000);
             if(headers != null && headers.length > 0){
 
                 for(String s : headers){
                     String h[] = s.split(";;");
-                    req.addHeader(h[0], h[1]);
+                    urlConn.setRequestProperty(h[0], h[1]);
                 }
             }
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), null);
+            urlConn.connect();
+			data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, null);
 			File f = new File(localFolder);
 			if(!f.exists()) {
                 boolean b = f.mkdirs();
                 if(!b)ALog.d(TAG, "create folder " + f.getAbsolutePath() + " failed");
             }
-			fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
+			fos = getOutputStream(f.getAbsoluteFile() + "/" + fileName);
 			fos.write(data);
 			fos.flush();
 		} catch (Exception e) {
@@ -292,22 +278,23 @@ public class HttpUtilsAndroid {
 
     public static void downloadFileFromUrlByDownloadThread(String url, String localFolder, String fileName, DownloadThread thread){
         byte[] data;
-        FileOutputStream fos = null;
+        OutputStream fos = null;
         try {
             if(new File(localFolder + "/" + fileName).exists()){
                 ALog.d(TAG, "file exists ? should ignore ???");
                 return;
             }
-            HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-            HttpGet req = HttpUtilsAndroid.getGetRequest(url);
-            if(thread != null)thread.onRequestStart(req);
-            data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(req), thread);
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            urlConn.connect();
+            if(thread != null)thread.onRequestStart();
+            data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, thread);
             File f = new File(localFolder);
             if(!f.exists()) {
                 boolean b = f.mkdirs();
                 if(!b)ALog.d(TAG, "create folder " + f.getAbsolutePath() + " failed");
             }
-            fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
+            fos = getOutputStream(f.getAbsoluteFile() + "/" + fileName);
             fos.write(data);
             fos.flush();
         } catch (Exception e) {
@@ -325,17 +312,17 @@ public class HttpUtilsAndroid {
 	
 	public static void downloadFileFromUrlWidthHeaders(String url, String localPath, String fileName, String header, String headerValue){
 		byte[] data;
-		FileOutputStream fos = null;
+		OutputStream fos = null;
 		try {
-			HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-			HttpGet get = HttpUtilsAndroid.getGetRequest(url);
-			get.addHeader(header, headerValue);
-			get.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.77 Safari/535.7");
-			data = HttpUtilsAndroid.getResponseEntityBytes(client.execute(get), null);
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            urlConn.connect();
+			urlConn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.77 Safari/535.7");
+			data = HttpUtilsAndroid.getResponseEntityBytes(urlConn, null);
 			File f = new File(localPath);
 			if(!f.exists())
 				f.mkdirs();
-			fos = new FileOutputStream(f.getAbsoluteFile() + "/" + fileName);
+			fos = getOutputStream(f.getAbsoluteFile() + "/" + fileName);
 			fos.write(data);
 			fos.flush();
 		} catch (Exception e) {
@@ -355,20 +342,20 @@ public class HttpUtilsAndroid {
 	 * handle the response entity.
 	 * we can get the entity from response. and then convert to byte[].
 	 * if you want to see the content by string : String s = new String(byte[]);
-	 * if you want to write the content to a file: FileOutputStream.write(byte[], started, end);
-	 * @param response HttpResponse from request
+	 * if you want to write the content to a file: OutputStream.write(byte[], started, end);
+	 * @param urlConn URLConnection from request
 	 * @return byte[]
 	 */
-	public static byte[] getResponseEntityBytes(HttpResponse response, HttpProgressListener cb){
-		HttpEntity entity= response.getEntity();
-        if(cb != null)cb.onResponse(response.getStatusLine().getStatusCode());
-		long contentLength = entity.getContentLength();
+	public static byte[] getResponseEntityBytes(URLConnection urlConn, HttpProgressListener cb){
+		long contentLength = urlConn.getContentLength();
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		InputStream is = null;
 		byte[] buffer = new byte[CACHE_SIZE];
 		long currentLength = 0;
 		try{
-			is = entity.getContent();
+            if(cb != null)cb.onResponse(((HttpURLConnection)urlConn).getResponseCode());
+
+            is = urlConn.getInputStream();
 			int i;
 			for(;;){
                 if(cb != null && cb.canceled()){
@@ -414,11 +401,11 @@ public class HttpUtilsAndroid {
 	 * we can check this and get the reason cause the error.
 	 * @param response HttpResponse from request
 	 * @return response code
-	 */
+
 	public static int getResponseStatusCode(HttpResponse response){
 		return response.getStatusLine().getStatusCode();
 	}
-	
+		 */
 	
 	/**
 	 * send message to the given handler.
@@ -446,7 +433,8 @@ public class HttpUtilsAndroid {
 	public static int checkNetworkEnv(Context context){
 		int ava = -1;
 		ConnectivityManager cm  = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
-		NetworkInfo ni = cm.getActiveNetworkInfo();
+		@SuppressLint("MissingPermission")
+        NetworkInfo ni = cm.getActiveNetworkInfo();
 		if(ni != null){
 			ava = ni.getType();
 		}
@@ -489,28 +477,31 @@ public class HttpUtilsAndroid {
 	 * @param localFile local file.
 	 */
 	public static void uploadByMulitpart(String url, String remotePath, String localFile, HttpProgressListener progressListener){
-		HttpClient client = HttpUtilsAndroid.getHttpClient(60 * 1000);
-		HttpPost post = HttpUtilsAndroid.getPostRequest(url);
-		HttpParams params = post.getParams();
-		params.setParameter("Accept-Encoding", "identity");
-		params.setParameter("Content-Type", "multipart/form-data; boundary=----------ThIs_Is_tHe_bouNdaRY_$");
-		params.setParameter("User-Agent", "klive");
 		//boundary=----------ThIs_Is_tHe_bouNdaRY_$
 		int resultCode = 404;
 		try {
+            URLConnection urlConn = new URL(url).openConnection();
+            urlConn.setConnectTimeout(60 * 1000);
+            urlConn.setRequestProperty("Accept-Encoding", "identity");
+            urlConn.setRequestProperty("Content-Type", "multipart/form-data; boundary=----------ThIs_Is_tHe_bouNdaRY_$");
+            urlConn.setRequestProperty("User-Agent", "klive");
+            urlConn.connect();
+            if(urlConn instanceof HttpURLConnection){
+                ((HttpURLConnection) urlConn).setRequestMethod("POST");
+            }
+
 			FilePart p = new FilePart(FileUtils.pickFileName(localFile), new File(localFile));
 			p.setTransferEncoding("binary");
 			p.setContentType("application/octet-stream");
 			ProgressMultipartEntity reqEntity = new ProgressMultipartEntity(new Part[]{p}, new File(localFile).length(), progressListener);
-			post.setEntity(reqEntity);
-            if(null != progressListener)progressListener.onRequestStart(post);
-            HttpResponse response = client.execute(post);
-			String resStr = new String(HttpUtilsAndroid.getResponseEntityBytes(response, null));
+            if(urlConn instanceof HttpURLConnection) {
+                reqEntity.writeTo(urlConn.getOutputStream());
+            }
+            if(null != progressListener)progressListener.onRequestStart();
+			String resStr = new String(HttpUtilsAndroid.getResponseEntityBytes(urlConn, null));
 			ALog.d("uploadByMulitpart", "resStr = " + resStr);
-			resultCode = response.getStatusLine().getStatusCode();
+			resultCode = ((HttpURLConnection)urlConn).getResponseCode();
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (ClientProtocolException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -522,7 +513,7 @@ public class HttpUtilsAndroid {
 	
 	public static interface HttpProgressListener{
         boolean canceled();
-        void onRequestStart(HttpRequestBase req);
+        void onRequestStart();
 		void onResponse(int code);
 		void onProgress(long progress, long size);
         void onFinish();
@@ -548,5 +539,21 @@ public class HttpUtilsAndroid {
         }
 
         return null;
+    }
+
+    public static String INTERNAL_SD = Environment.getDownloadCacheDirectory().getAbsolutePath();
+    public static OutputStream getOutputStream(String f) throws FileNotFoundException {
+	    if(f.startsWith(INTERNAL_SD)){
+	        return new FileOutputStream(f);
+        }else{
+	        return TFCardUtils.getFileOutputStream(new File(f));
+        }
+    }
+    public static OutputStream getOutputStream(File f) throws FileNotFoundException {
+        if(f.getAbsolutePath().startsWith(INTERNAL_SD)){
+            return new FileOutputStream(f);
+        }else{
+            return TFCardUtils.getFileOutputStream(f);
+        }
     }
 }

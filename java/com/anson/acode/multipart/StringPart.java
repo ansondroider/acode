@@ -34,9 +34,7 @@ import java.io.OutputStream;
 import java.io.IOException;
 
 import org.apache.http.util.EncodingUtils;
-import org.apache.commons.logging.Log;
 
-import com.anson.acode.ALog;
 
 /**
  * Simple string parameter for a multipart post

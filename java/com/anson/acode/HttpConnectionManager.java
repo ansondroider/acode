@@ -1,12 +1,12 @@
 package com.anson.acode;
 
-import org.apache.http.client.methods.HttpRequestBase;
 
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 
 public class HttpConnectionManager {
 
-    static ArrayList<HttpRequestBase> requests;
+    static ArrayList<HttpURLConnection> requests;
 
 	public static HttpConnectionManager mgr = null;
 	public static HttpConnectionManager getInstance(){
@@ -17,25 +17,25 @@ public class HttpConnectionManager {
 	}
 	
 	public HttpConnectionManager(){
-        requests = new ArrayList<HttpRequestBase>();
+        requests = new ArrayList<HttpURLConnection>();
     }
 
-    public void addRequest(HttpRequestBase req){
+    public void addRequest(HttpURLConnection req){
         requests.add(req);
     }
 
-    public void forceStopRequest(HttpRequestBase req){
-        req.abort();
+    public void forceStopRequest(HttpURLConnection req){
+        req.disconnect();
         onRequestComplete(req);
     }
 
-    public void onRequestComplete(HttpRequestBase req){
+    public void onRequestComplete(HttpURLConnection req){
         requests.remove(req);
     }
 
     public void onExit(){
-        for(HttpRequestBase r : requests){
-            r.abort();
+        for(HttpURLConnection r : requests){
+            r.disconnect();
         }
     }
 }

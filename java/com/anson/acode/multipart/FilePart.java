@@ -36,9 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.http.util.EncodingUtils;
-import org.apache.commons.logging.Log;
 
-import com.anson.acode.ALog;
 
 /**
  * This class implements a part of a Multipart post object that

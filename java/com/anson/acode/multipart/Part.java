@@ -30,14 +30,12 @@
 
 package com.anson.acode.multipart;
 
+import org.apache.http.util.EncodingUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import org.apache.http.util.EncodingUtils;
-import org.apache.commons.logging.Log;
-
-import com.anson.acode.ALog;
 
 /**
  * Abstract class for one Part of a multipart post object.
@@ -57,7 +55,6 @@ public abstract class Part {
 
     /** 
      * The boundary 
-     * @deprecated use {@link org.apache.http.client.methods.multipart#MULTIPART_BOUNDARY}
      */
     protected static final String BOUNDARY = "----------------314159265358979323846";
     

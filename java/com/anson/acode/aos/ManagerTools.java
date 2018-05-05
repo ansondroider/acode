@@ -15,14 +15,27 @@ import android.os.SystemClock;
 import android.view.View;
 import android.view.Window;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 public class ManagerTools {
 	public static String TAG = "ManagerTools";
 	public static final String[] SystemAppDirs = {"/system/priv-app", "/system/app", "/system/framework"};
 
 	public static void goToSleep(Context cxt){
 		PowerManager pm = (PowerManager)cxt.getSystemService(cxt.POWER_SERVICE);
-		pm.goToSleep(SystemClock.uptimeMillis());
-	}
+		//pm.goToSleep(SystemClock.uptimeMillis());
+        try{
+            Method goToSleep = PowerManager.class.getDeclaredMethod("goToSleep", Long.TYPE);
+            goToSleep.invoke(pm, SystemClock.uptimeMillis());
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+    }
 	
 	public static WakeLock wakeupWithWakeLock(String tag, PowerManager pm){
 		WakeLock wl = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, TAG);  
