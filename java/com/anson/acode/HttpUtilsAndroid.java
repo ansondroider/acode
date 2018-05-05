@@ -541,8 +541,9 @@ public class HttpUtilsAndroid {
         return null;
     }
 
-    public static String INTERNAL_SD = Environment.getDownloadCacheDirectory().getAbsolutePath();
+    public static String INTERNAL_SD = Environment.getExternalStorageDirectory().getAbsolutePath();
     public static OutputStream getOutputStream(String f) throws FileNotFoundException {
+    	//ALog.i(TAG, "getOutputStream(" + f + ")");
 	    if(f.startsWith(INTERNAL_SD)){
 	        return new FileOutputStream(f);
         }else{
@@ -550,6 +551,7 @@ public class HttpUtilsAndroid {
         }
     }
     public static OutputStream getOutputStream(File f) throws FileNotFoundException {
+		//ALog.i(TAG, "getOutputStream(" + f + ")");
         if(f.getAbsolutePath().startsWith(INTERNAL_SD)){
             return new FileOutputStream(f);
         }else{

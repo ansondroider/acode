@@ -4,17 +4,20 @@ import android.content.Context;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.storage.StorageManager;
+import android.text.TextUtils;
+import android.webkit.MimeTypeMap;
 
 import org.apache.http.util.ByteArrayBuffer;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -24,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+
+import static com.anson.acode.HttpUtilsAndroid.getOutputStream;
 
 public class FileUtils {
 	public static final int TYPE_UNKNOW = 0;
@@ -88,11 +93,11 @@ public class FileUtils {
 	
 	/**
 	 * check the String s is Contained in arr!
-	 * @param s
-	 * @param arr
-	 * @return
+	 * @param s String
+	 * @param arr array
+	 * @return contain
 	 */
-	public static boolean isContained(String s, String[] arr){
+	private static boolean isContained(String s, String[] arr){
 		for(String ss : arr){
 			if(ss.equals(s))return true;
 		}
@@ -467,7 +472,7 @@ public class FileUtils {
 		return name;
 	}
 	
-	public static boolean saveFileToLocal(String url, String folderPath, String targetName, String ext){
+	/*public static boolean saveFileToLocal(String url, String folderPath, String targetName, String ext){
 		ALog.alog("Tool", "saveFileToLocal: " + url);
 		byte[] content = null;
 		boolean success = false;
@@ -508,31 +513,39 @@ public class FileUtils {
 			if(success) sf.renameTo(target);
 			return success;
 		}
-	}
+	}*/
 	
 	/**
 	 * remove a File or a Path (all file sub Path)
-	 * @param f
-	 * @return
+	 * @param f file or folder
+	 * @return success
 	 */
 	public static boolean removeFile(String f){
-		return removeFile(new File(f));
+		return removeFile(new File(f), null);
 	}
 	/**
 	 * remove a File or a Path (all file sub Path)
-	 * @param f
-	 * @return
+	 * @param f file or folder
+	 * @return success
 	 */
-	public static boolean removeFile(File f){
+	public static boolean removeFile(File f, final String[] ignoreFiles){
+		//if(ignoreFiles != null)ALog.i("removeFile", "ignore:" + ignoreFiles[0]);
 		if(f.isDirectory()){
-			File[] files = f.listFiles();
+			File[] files = f.listFiles(new FileFilter() {
+				@Override
+				public boolean accept(File file) {
+					return !shouldIgnore(file, ignoreFiles);
+				}
+			});
 			for(File file:files){
-				if(!removeFile(file))return false;
+				//ALog.i("removeFile", "files[]:" + file);
+				removeFile(file, null);
 			}
-			return f.delete();
+			if(shouldIgnore(f, ignoreFiles))return true;
+			return TFCardUtils.isTfCardFile(f) ? TFCardUtils.deleteFile(f):f.delete();
 		}else{
-			if(f.exists()){
-				return f.delete();
+			if(f.exists() && !shouldIgnore(f, ignoreFiles)){
+				return TFCardUtils.isTfCardFile(f) ? TFCardUtils.deleteFile(f):f.delete();
 			}
 		}		
 		return true;
@@ -545,13 +558,18 @@ public class FileUtils {
      * @param msgFinish message for finish.
      */
     public static void removeFile(String f, final Handler h, final int msgFinish){
-        removeFile(new File(f), h, msgFinish);
+        removeFile(new File(f), null, h, msgFinish);
     }
-    public static void removeFile(final File f, final Handler h, final int msgFinish){
+
+	public static void removeFile(final String f, final String[] ignoreFiles, final Handler h, final int msgFinish){
+		removeFile(new File(f), ignoreFiles, h, msgFinish);
+	}
+
+    public static void removeFile(final File f, final String[] ignoreFiles, final Handler h, final int msgFinish){
         new Thread(){
             @Override
             public void run() {
-                removeFile(f);
+                removeFile(f, ignoreFiles);
                 if(h != null){
                     h.sendEmptyMessage(msgFinish);
                 }
@@ -569,7 +587,6 @@ public class FileUtils {
 			}
 			reader.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}  
 	}
@@ -625,7 +642,7 @@ public class FileUtils {
             ALog.w("writeToFile create Folder(" + parent.getAbsolutePath() + ") " + parent.mkdirs());
         }
         try {
-            FileOutputStream fos = new FileOutputStream(f);
+            OutputStream fos = getOutputStream(f);
             fos.write(content);
             fos.flush();
             fos.close();
@@ -754,6 +771,16 @@ public class FileUtils {
 		
 		return "*/*";
 	}
+
+	public static String getFileMineTypeWithMimeTypeMap(File file){
+		MimeTypeMap map = MimeTypeMap.getSingleton();
+		String ext = MimeTypeMap.getFileExtensionFromUrl(file.getName());
+		String type = map.getMimeTypeFromExtension(ext);
+
+		if (TextUtils.isEmpty(type))
+			type = "*/*";
+		return type;
+	}
 	
 	public static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
@@ -838,7 +865,7 @@ public class FileUtils {
 	 * @param targetFolder target folder
 	 * @return success
 	 */
-	public static boolean copyFile(String src, String targetFolder){
+	public static boolean copyFile(String src, String targetFolder, String[] ignore){
 		try {
 			File F0 = new File(targetFolder);
 			if (!F0.exists()) {
@@ -849,7 +876,7 @@ public class FileUtils {
 			
 			File F = new File(src);
 			if(F.isFile()){
-				return copySingleFile(src, F0.getAbsolutePath() + "/" + F.getName());
+				return copySingleFile(src, F0.getAbsolutePath() + "/" + F.getName(), ignore);
 			}else if(F.isDirectory()){
 				//src = /mnt/sdcard/thumb;
 				//                       |-1.jpg, 2.jpg, 
@@ -861,40 +888,40 @@ public class FileUtils {
 				
 				File[] allFile = F.listFiles(); 
 				int totalNum = allFile.length; 
-				String srcName = "";
-				String desName = "";
-				int currentFile = 0;
+				String srcName;
+				String desName;
+				int currentFile;
 				for (currentFile = 0; currentFile < totalNum; currentFile++) {
 					if (!allFile[currentFile].isDirectory()) {
 						// 如果是文件是采用處理文件的方式
 						srcName = allFile[currentFile].toString();
 						desName = targetFolder + "/" + F.getName() + "/"+ allFile[currentFile].getName();
-						copySingleFile(srcName, desName);
+						copySingleFile(srcName, desName, ignore);
 					}else {
-						if (copyFile(allFile[currentFile].getPath().toString(),
-								targetFolder + "/" + F.getName())) {
+						if (copyFile(allFile[currentFile].getAbsolutePath(),
+								targetFolder + "/" + F.getName(), ignore)) {
 						} else {return false;}
 					}
 				}
 				return true;
-			}else return false;
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			return false;
-		}		
+		}
+		return false;
 	}
 	
 	/**
-	 * copy SINGLE file from src to des.
-	 * @param src
-	 * @param des
-	 * @return
+	 * copy SINGLE file from src to des
+	 * @param src src file
+	 * @param des target.
+	 * @return success
 	 */
-	public static boolean copySingleFile(String src, String des) {
+	public static boolean copySingleFile(String src, String des, String[] ignore) {
 		FileInputStream FIS = null;
-		FileOutputStream FOS = null;
+		OutputStream FOS = null;
 		File df = new File(des);
-		if(df.exists() && df.length() == new File(src).length()){
+		if(shouldIgnore(src, ignore) || (df.exists() && df.length() == new File(src).length())){
 			return true;
 		}
 		File dp = df.getParentFile();
@@ -904,9 +931,9 @@ public class FileUtils {
 		
 		try {
 			FIS = new FileInputStream(src);
-			FOS = new FileOutputStream(des);
+			FOS = getOutputStream(des);
 			byte[] bt = new byte[1024];
-			int readNum = 0;
+			int readNum;
 			while ((readNum = FIS.read(bt)) != -1) {
 				FOS.write(bt, 0, readNum);
 			}
@@ -919,10 +946,9 @@ public class FileUtils {
 				FIS.close();
 				FOS.close();
 			} catch (IOException f) {
-				// TODO
+				f.printStackTrace();
 			}
 			return false;
-		} finally {
 		}
 	}
 
@@ -932,23 +958,27 @@ public class FileUtils {
      * dst(/mnt/external_sd);
 	 * @param src src folder
 	 * @param targetFolder target folder
-	 * @return finish
 	 */
-	public static boolean copyFile(String src, String targetFolder, Handler h, int what){
+	public static void copyFile(String src, String targetFolder, Handler h, int what){
+		copyFile(src, targetFolder, null, h, what);
+	}
+	public static void copyFile(final String src, final String targetFolder, final String[] ignoreFiles, final Handler h, final int what){
+		new Thread(){
+			@Override
+			public void run() {
 		try {
             //create target folder if NOT exists
 			File target = new File(targetFolder);
 			if (!target.exists()) {
 				if (!target.mkdirs()) {
-					return false;
+					return;
 				}
 			}
 			
 			File F = new File(src);
 			if(F.isFile()){
-				boolean res = copySingleFile(src, target.getAbsolutePath() + "/" + F.getName(), h, what);
+				boolean res = copySingleFile(src, target.getAbsolutePath() + "/" + F.getName(), ignoreFiles, h, what);
                 if(h != null)h.sendEmptyMessage(what);
-                return res;
 			}else if(F.isDirectory()){
 				//src = /mnt/sdcard/thumb;
 				//                       |-1.jpg, 2.jpg, 
@@ -960,30 +990,48 @@ public class FileUtils {
 				tar.mkdir();
 
                 //start copy file.
-				File[] allFile = F.listFiles(); 
+				File[] allFile = F.listFiles(new FileFilter() {
+					@Override
+					public boolean accept(File file) {
+						return !shouldIgnore(file, ignoreFiles);
+					}
+				});
+
 				int totalNum = allFile.length; 
-				String srcName = "";
-				String desName = "";
-				int currentFile = 0;
+				String srcName;
+				String desName;
+				int currentFile;
 				for (currentFile = 0; currentFile < totalNum; currentFile++) {
 					if (!allFile[currentFile].isDirectory()) {
-						// 如果是文件是采用處理文件的方式
 						srcName = allFile[currentFile].getAbsolutePath();
 						desName = tar.getAbsolutePath() + "/"+ allFile[currentFile].getName();
-						copySingleFile(srcName, desName, h, what);
+						copySingleFile(srcName, desName, ignoreFiles);
 					}else {
-						copyFile(allFile[currentFile].getAbsolutePath(), tar.getAbsolutePath());
+						copyFile(allFile[currentFile].getAbsolutePath(), tar.getAbsolutePath(), ignoreFiles);
 					}
 				}
-				return true;
-			}else return false;
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			return false;
 		}finally {
             if(h != null)h.sendEmptyMessage(what);
         }
+			}
+		}.start();
     }
+	private static boolean shouldIgnore(File path, String[] ignoreFiles){
+		return shouldIgnore(path.getAbsolutePath(), ignoreFiles);
+	}
+    private static boolean shouldIgnore(String path, String[] ignoreFiles){
+		if(ignoreFiles != null){
+			for(String s : ignoreFiles){
+				boolean find = path.startsWith(s);
+				//ALog.i("shouldIgnore", find + "(" + path + ":" + s + ")");
+				if(find)return true;
+			}
+		}
+		return false;
+	}
 	
 	/**
 	 * copy SINGLE file from src to des.
@@ -991,9 +1039,10 @@ public class FileUtils {
 	 * @param des
 	 * @return
 	 */
-	public static boolean copySingleFile(String src, String des, Handler h, int what) {
+	public static boolean copySingleFile(String src, String des, String[] ignoreFiles, Handler h, int what) {
+		if(shouldIgnore(src, ignoreFiles))return true;
 		FileInputStream FIS = null;
-		FileOutputStream FOS = null;
+		OutputStream FOS = null;
 		File df = new File(des);
 		if(df.exists() && df.length() == new File(src).length()){
 			return true;
@@ -1004,7 +1053,7 @@ public class FileUtils {
 		}
 		try {
 			FIS = new FileInputStream(src);
-			FOS = new FileOutputStream(des);
+			FOS = getOutputStream(des);
 			long length = new File(src).length();
 			long progress = 0;
 			byte[] bt = new byte[1024];
@@ -1038,7 +1087,7 @@ public class FileUtils {
 	 */
 	public static boolean copySingleFile(String src, String des, Handler h, int msg_start, int msg_update, int msg_success, int msg_failed) {
 		FileInputStream FIS = null;
-		FileOutputStream FOS = null;
+		OutputStream FOS = null;
 		File df = new File(des);
 		h.sendEmptyMessage(msg_start);
 		if(df.exists() && df.length() == new File(src).length()){
@@ -1051,7 +1100,7 @@ public class FileUtils {
 		}
 		try {
 			FIS = new FileInputStream(src);
-			FOS = new FileOutputStream(des);
+			FOS = getOutputStream(des);
 			long length = new File(src).length();
 			long progress = 0;
 			byte[] bt = new byte[1024];
