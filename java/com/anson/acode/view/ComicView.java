@@ -216,7 +216,7 @@ public class ComicView extends ViewGroup implements XImageView.ClickListener{
 			long time = cTime - startTime;
             float passed = AnimationHelper.getMoveRate((int)time, duration, false);
 			scrollTo(origin + (int)(mDis * passed), 0);
-            ALog.d(TAG, "moveStepByStep time(" + time + "), passed(" + passed + "), scrollX(" + getScrollX() + ")");
+            //ALog.d(TAG, "moveStepByStep time(" + time + "), passed(" + passed + "), scrollX(" + getScrollX() + ")");
 			//requestLayout();
 			h.sendEmptyMessage(MSG_MOVESBS);
 			return false;

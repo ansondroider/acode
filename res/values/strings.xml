@@ -1,5 +1,5 @@
 <resources>
 
-    <string name="app_name">acode</string>
-    <string name="copyright"></string>
+    <string name="app_name" translatable="false">acode</string>
+    <string name="copyright" translatable="false"></string>
 </resources>

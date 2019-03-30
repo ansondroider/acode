@@ -61,7 +61,7 @@ public class TFCardUtils {
     }
 
     public static boolean isTfCardFile(File f){
-        return f.getAbsolutePath().startsWith(tfRoot);
+        return tfRoot != null && f.getAbsolutePath().startsWith(tfRoot);
     }
 
     public static boolean deleteFile(File f) {
